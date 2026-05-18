@@ -70,15 +70,23 @@
             </td>
 
             <td class="p-5 text-center">
-              <div class="w-2 h-2 rounded-full bg-neon-green mx-auto shadow-[0_0_8px_#39FF14]"></div>
+              <div 
+                class="w-2 h-2 rounded-full mx-auto transition-all duration-300"
+                :class="user.is_banned 
+                  ? 'bg-red-500 shadow-[0_0_8px_#EF4444]' 
+                  : 'bg-[#39FF14] shadow-[0_0_12px_#39FF14]'"
+              ></div>
             </td>
 
             <td class="p-5 text-right">
               <button 
-                @click="suspendUser(user.id)"
-                class="bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                @click="toggleUserBan(user)"
+                class="px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all active:scale-95 border"
+                :class="user.is_banned
+                  ? 'bg-[#39FF14]/10 text-[#39FF14] border-[#39FF14]/20 hover:bg-[#39FF14] hover:text-black shadow-[0_0_10px_rgba(57,255,20,0.1)]'
+                  : 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500 hover:text-white'"
               >
-                Suspend
+                {{ user.is_banned ? 'Unban' : 'Suspend' }}
               </button>
             </td>
           </tr>
@@ -101,8 +109,8 @@ const fetchUsers = async () => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('is_admin', false) // 1. FILTER: Don't show admins
-      .order('name', { ascending: true }) // 2. SORT: Alphabetical
+      .eq('is_admin', false)
+      .order('name', { ascending: true })
 
     if (error) throw error
     if (data) users.value = data
@@ -114,12 +122,35 @@ const fetchUsers = async () => {
   }
 }
 
-const suspendUser = async (userId) => {
-  const confirmed = confirm("Are you sure you want to suspend this athlete's access?")
-  if (confirmed) {
-    // For your Master's project logic: 
-    // You could update a 'status' column in Supabase here.
-    alert(`User ${userId} suspension logic triggered.`)
+// REFACTORED WORKFLOW: Dynamic toggle based on the user object state
+const toggleUserBan = async (user) => {
+  const currentBanStatus = user.is_banned || false
+  const actionText = currentBanStatus ? "UNBAN and restore" : "PERMANENTLY BAN"
+  
+  const confirmed = confirm(`Are you sure you want to ${actionText} this athlete?`)
+  if (!confirmed) return
+
+  try {
+    // If lifting a ban, restore their reliability score back to a base 100 benchmark
+    const targetScore = currentBanStatus ? 100 : 0
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        is_banned: !currentBanStatus,
+        reliability_score: targetScore
+      })
+      .eq('id', user.id)
+
+    if (error) throw error
+
+    alert(`Athlete has been successfully ${currentBanStatus ? 'reinstated' : 'banned'}.`)
+    
+    // Refresh the local data set instantly
+    await fetchUsers()
+  } catch (error) {
+    console.error('Moderation mutation rejected:', error.message)
+    alert('Administrative action failed: ' + error.message)
   }
 }
 
@@ -129,7 +160,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Optional: Custom scrollbar for the table if it gets long */
 ::-webkit-scrollbar {
   width: 6px;
 }
