@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: black;
+    color: white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* If you still want to use @apply for custom utility groups: */
+@layer components {
+  .btn-neon {
+    @apply bg-[#39FF14] text-black font-black py-2 px-4 rounded-lg transition-all active:scale-95;
+  }
+}
