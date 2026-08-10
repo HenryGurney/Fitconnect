@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'lobby_details_page.dart';
-import 'create_lobby_page.dart'; // FIX: Resolves the missing CreateLobbyPage error!
+import 'create_lobby_page.dart';
+import 'lobby_service.dart';
+import 'models/models.dart';
 
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({super.key});
@@ -11,7 +12,16 @@ class LobbyScreen extends StatefulWidget {
 }
 
 class _LobbyScreenState extends State<LobbyScreen> {
-  final _supabase = Supabase.instance.client;
+  final LobbyService _lobbyService = LobbyService();
+  
+  Stream<List<LobbyModel>> get _lobbiesStream => _lobbyService.getLobbiesStream();
+
+  Future<void> _handleRefresh() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,45 +37,59 @@ class _LobbyScreenState extends State<LobbyScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _supabase.from('lobbies').stream(primaryKey: ['id']).order('created_at', ascending: false),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF39FF14)),
+      body: RefreshIndicator(
+        color: const Color(0xFF39FF14),
+        backgroundColor: const Color(0xFF0F0F0F),
+        onRefresh: _handleRefresh,
+        child: StreamBuilder<List<LobbyModel>>(
+          stream: _lobbiesStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF39FF14)),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  "Error loading lobbies: ${snapshot.error}",
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+              );
+            }
+
+            final lobbies = snapshot.data ?? [];
+
+            if (lobbies.isEmpty) {
+              return LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: const Center(
+                      child: Text(
+                        "No active sports lobbies found.\nTap '+' to launch the first one!",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white38, fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 8, bottom: 100),
+              itemCount: lobbies.length,
+              itemBuilder: (context, index) {
+                final lobby = lobbies[index];
+                return LobbyCardWidget(lobby: lobby);
+              },
             );
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                "Error loading lobbies: ${snapshot.error}",
-                style: const TextStyle(color: Colors.redAccent),
-              ),
-            );
-          }
-
-          final lobbies = snapshot.data ?? [];
-
-          if (lobbies.isEmpty) {
-            return const Center(
-              child: Text(
-                "No active sports lobbies found.\nTap '+' to launch the first one!",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white38, fontSize: 15),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.only(top: 8, bottom: 100),
-            itemCount: lobbies.length,
-            itemBuilder: (context, index) {
-              final lobby = lobbies[index];
-              return LobbyCardWidget(lobbyData: lobby);
-            },
-          );
-        },
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF39FF14),
@@ -84,22 +108,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
 }
 
 class LobbyCardWidget extends StatelessWidget {
-  final Map<String, dynamic> lobbyData;
-  const LobbyCardWidget({super.key, required this.lobbyData});
+  final LobbyModel lobby;
+  const LobbyCardWidget({super.key, required this.lobby});
 
   @override
   Widget build(BuildContext context) {
-    final String title = lobbyData['title'] ?? 'Casual Match';
-    final String sport = lobbyData['sport'] ?? 'Futsal';
-    final String location = lobbyData['location_name'] ?? 'Unknown Venue';
-    final int maxParticipants = lobbyData['max_participants'] ?? 10;
-
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LobbyDetailsPage(lobbyData: lobbyData),
+            builder: (context) => LobbyDetailsPage(lobby: lobby),
           ),
         );
       },
@@ -124,20 +143,33 @@ class LobbyCardWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    sport.toUpperCase(),
-                    style: const TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1),
+                    lobby.sport.toUpperCase(),
+                    style: const TextStyle(
+                      color: Color(0xFF39FF14),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
                 Text(
-                  "LIMIT: $maxParticipants PLYRS",
-                  style: const TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold),
+                  "LIMIT: ${lobby.maxParticipants} PLYRS",
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 14),
             Text(
-              title,
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+              lobby.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 10),
             Row(
@@ -147,7 +179,7 @@ class LobbyCardWidget extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    location,
+                    lobby.locationName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white60, fontSize: 13),
@@ -155,6 +187,27 @@ class LobbyCardWidget extends StatelessWidget {
                 ),
               ],
             ),
+            if (lobby.matchDate != null || lobby.matchTime != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_month, color: Color(0xFF39FF14), size: 15),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "${lobby.matchDate ?? ''} ${lobby.matchTime != null ? '• ${lobby.matchTime}' : ''}".trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF39FF14),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 15),
             Container(
               height: 40,
@@ -166,7 +219,12 @@ class LobbyCardWidget extends StatelessWidget {
               child: const Center(
                 child: Text(
                   "VIEW FULL DETAILS",
-                  style: TextStyle(color: Color(0xFF39FF14), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  style: TextStyle(
+                    color: Color(0xFF39FF14),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),

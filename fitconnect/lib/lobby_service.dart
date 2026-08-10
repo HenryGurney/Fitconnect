@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'models/models.dart';
 
 class LobbyService {
   final _supabase = Supabase.instance.client;
@@ -19,7 +21,7 @@ class LobbyService {
           .where((name) => name.isNotEmpty)
           .toList();
     } catch (e) {
-      // Failed to fetch sports list, returning fallback defaults
+      debugPrint("Error fetching sports list: $e");
       return ['Futsal', 'Badminton', 'Tennis', 'Basketball', 'Volleyball'];
     }
   }
@@ -33,10 +35,12 @@ class LobbyService {
     required double lng,
     required List<String> skills,
     required int maxParticipants,
+    String? matchDate,
+    String? matchTime,
   }) async {
     if (currentUserId == null) throw Exception("User must be logged in to host events.");
 
-    await _supabase.from('lobbies').insert({
+    final payload = <String, dynamic>{
       'title': title,
       'sport': sport,
       'location_name': locationName,
@@ -45,7 +49,11 @@ class LobbyService {
       'skills': skills,
       'max_participants': maxParticipants,
       'host_id': currentUserId,
-    });
+      if (matchDate != null) 'match_date': matchDate,
+      if (matchTime != null) 'match_time': matchTime,
+    };
+
+    await _supabase.from('lobbies').insert(payload);
   }
 
   /// 3. Submits an initial membership join request (Defaults to 'pending' state)
@@ -63,34 +71,128 @@ class LobbyService {
     await _supabase.from('lobby_participants').update({'status': newStatus}).eq('id', requestId);
   }
 
-  /// 5. Pulls the status row data for a specific player's profile stream tracker
-  Stream<List<Map<String, dynamic>>> getUserRequestStream(String lobbyId) {
+  /// 5. Stream of raw lobbies mapped to LobbyModel objects (excluding admin hosted lobbies)
+  Stream<List<LobbyModel>> getLobbiesStream() {
+    return _supabase
+        .from('lobbies')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((list) => list
+            .map((json) => LobbyModel.fromJson(json))
+            .where((lobby) {
+              final hostName = lobby.hostProfile?.name.toLowerCase() ?? '';
+              final isHostAdmin = lobby.hostProfile?.isAdmin ?? false;
+              return !isHostAdmin && !hostName.contains('admin');
+            })
+            .toList());
+  }
+
+  /// 6. Stream of lobbies hosted by the logged-in user mapped to LobbyModel
+  Stream<List<LobbyModel>> getMyLobbiesStream() {
+    if (currentUserId == null) return Stream.value([]);
+    return _supabase
+        .from('lobbies')
+        .stream(primaryKey: ['id'])
+        .eq('host_id', currentUserId!)
+        .order('created_at', ascending: false)
+        .map((list) => list.map((json) => LobbyModel.fromJson(json)).toList());
+  }
+
+  /// 7. Stream of requests for a specific user inside a lobby
+  Stream<List<LobbyParticipantModel>> getUserRequestStream(String lobbyId) {
     if (currentUserId == null) return const Stream.empty();
     return _supabase
         .from('lobby_participants')
         .stream(primaryKey: ['id'])
-        .eq('lobby_id', lobbyId);
+        .eq('lobby_id', lobbyId)
+        .map((list) => list.map((json) => LobbyParticipantModel.fromJson(json)).toList());
   }
 
-  /// 6. Pulls all player requests matching an event lobby container footprint
-  Stream<List<Map<String, dynamic>>> getAllLobbyRequestsStream(String lobbyId) {
+  /// 8. Stream of all player requests matching a lobby
+  Stream<List<LobbyParticipantModel>> getAllLobbyRequestsStream(String lobbyId) {
     return _supabase
         .from('lobby_participants')
         .stream(primaryKey: ['id'])
-        .eq('lobby_id', lobbyId);
+        .eq('lobby_id', lobbyId)
+        .map((list) => list.map((json) => LobbyParticipantModel.fromJson(json)).toList());
   }
 
-/// 7. Helper to fetch profile details asynchronously for applicant reviews
-  Future<Map<String, dynamic>?> fetchPlayerProfile(String userId) async {
+  /// 9. Helper to fetch profile details asynchronously for applicant reviews
+  Future<ProfileModel?> fetchPlayerProfile(String userId) async {
     try {
-      return await _supabase
+      final data = await _supabase
           .from('profiles')
           .select()
           .eq('id', userId)
           .maybeSingle();
+
+      if (data == null) return null;
+      return ProfileModel.fromJson(data);
     } catch (e) {
-      // Error fetching profile review data
+      debugPrint("Error fetching profile for applicant: $e");
       return null;
     }
+  }
+
+  /// 10. Delete a lobby by ID (handles int/string IDs and checks for Supabase RLS permission issues)
+  Future<void> deleteLobby(String lobbyId) async {
+    final dynamic targetId = int.tryParse(lobbyId) ?? lobbyId;
+
+    try {
+      await _supabase
+          .from('lobby_participants')
+          .delete()
+          .eq('lobby_id', targetId);
+    } catch (e) {
+      debugPrint("Warning deleting participants: $e");
+    }
+
+    // Perform delete and return affected rows to verify RLS permission
+    final List<dynamic> response = await _supabase
+        .from('lobbies')
+        .delete()
+        .eq('id', targetId)
+        .select();
+
+    if (response.isEmpty) {
+      // Fallback try with string representation
+      final List<dynamic> stringRetry = await _supabase
+          .from('lobbies')
+          .delete()
+          .eq('id', lobbyId)
+          .select();
+
+      if (stringRetry.isEmpty) {
+        throw Exception(
+          "Supabase RLS Policy check: 0 rows deleted. "
+          "Please verify that your Supabase 'lobbies' table has a DELETE policy for authenticated hosts.",
+        );
+      }
+    }
+  }
+
+  /// 11. Allows a player to withdraw/cancel their join request for a lobby
+  Future<void> leaveLobby(String lobbyId) async {
+    if (currentUserId == null) return;
+    final dynamic targetId = int.tryParse(lobbyId) ?? lobbyId;
+    await _supabase
+        .from('lobby_participants')
+        .delete()
+        .eq('lobby_id', targetId)
+        .eq('user_id', currentUserId!);
+  }
+
+  /// 11. Update existing lobby details
+  Future<void> updateLobby({
+    required String lobbyId,
+    required String title,
+    required String locationName,
+    required int maxParticipants,
+  }) async {
+    await _supabase.from('lobbies').update({
+      'title': title,
+      'location_name': locationName,
+      'max_participants': maxParticipants,
+    }).eq('id', lobbyId);
   }
 }

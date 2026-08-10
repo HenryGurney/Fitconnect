@@ -1,21 +1,35 @@
 import 'package:flutter/material.dart';
+import 'models/models.dart';
 
 class FreeDiscovery extends StatelessWidget {
-  final List<Map<String, dynamic>> gameRequests;
+  final List<LobbyModel> lobbies;
   final Future<void> Function() onRefresh;
+  final Function(LobbyModel)? onLobbySelected;
 
-  const FreeDiscovery({super.key, required this.gameRequests, required this.onRefresh});
+  const FreeDiscovery({
+    super.key,
+    required this.lobbies,
+    required this.onRefresh,
+    this.onLobbySelected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (gameRequests.isEmpty) {
+    if (lobbies.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.sports_rounded, size: 64, color: Colors.white.withValues(alpha: 0.1)),
             const SizedBox(height: 16),
-            Text("NO ACTIVE LOBBIES", style: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontWeight: FontWeight.w900, letterSpacing: 2)),
+            Text(
+              "NO ACTIVE LOBBIES",
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.2),
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2,
+              ),
+            ),
           ],
         ),
       );
@@ -26,9 +40,11 @@ class FreeDiscovery extends StatelessWidget {
       color: const Color(0xFF39FF14),
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: gameRequests.length,
+        itemCount: lobbies.length,
         itemBuilder: (context, index) {
-          final req = gameRequests[index];
+          final lobby = lobbies[index];
+          final hostName = lobby.hostProfile?.name ?? 'ATHLETE';
+
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(20),
@@ -43,23 +59,59 @@ class FreeDiscovery extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(req['sport'].toString().toUpperCase(), style: const TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 10)),
-                    Text("BY ${req['profiles']?['name']?.toString().toUpperCase() ?? 'ATHLETE'}", style: const TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.bold)),
+                    Text(
+                      lobby.sport.toUpperCase(),
+                      style: const TextStyle(
+                        color: Color(0xFF39FF14),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 10,
+                      ),
+                    ),
+                    Text(
+                      "BY ${hostName.toUpperCase()}",
+                      style: const TextStyle(
+                        color: Colors.white24,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(req['description'] ?? "Looking for a match!", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  lobby.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     const Icon(Icons.location_on, size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text(req['location'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                    const Spacer(),
+                    Expanded(
+                      child: Text(
+                        lobby.locationName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF39FF14), foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      onPressed: () {}, 
-                      child: const Text("JOIN", style: TextStyle(fontWeight: FontWeight.w900)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF39FF14),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        if (onLobbySelected != null) {
+                          onLobbySelected!(lobby);
+                        }
+                      }, 
+                      child: const Text("VIEW", style: TextStyle(fontWeight: FontWeight.w900)),
                     )
                   ],
                 ),

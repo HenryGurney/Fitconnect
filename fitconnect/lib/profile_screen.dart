@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'services/profile_service.dart';
+import 'services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,9 +13,12 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _supabase = Supabase.instance.client;
+  final ProfileService _profileService = ProfileService();
+  final AuthService _authService = AuthService();
+
   bool _isLoading = true;
-  bool _isUploading = false; 
+  bool _isUploading = false;
+  bool _isSaving = false;
 
   final _nameController = TextEditingController();
   final _locController = TextEditingController();
@@ -24,9 +27,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _imageUrl; 
   String _currentTier = 'free';
   String _currentSport = 'Futsal';
-  int _reliabilityScore = 100; // Added: Track user reliability score state
+  String _currentSkill = 'Intermediate';
+  int _reliabilityScore = 100;
   bool _isEmailVerified = false;
-  Timer? _timer;
+
+  final List<String> _sportsList = const [
+    'Futsal',
+    'Tennis',
+    'Badminton',
+    'Basketball',
+    'Volleyball',
+    'Running',
+  ];
+
+  final List<String> _skillLevels = const [
+    'Beginner',
+    'Intermediate',
+    'Advanced',
+    'Pro',
+  ];
 
   @override
   void initState() {
@@ -36,7 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
     _nameController.dispose();
     _locController.dispose();
     _emailController.dispose();
@@ -45,28 +63,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchProfile() async {
     setState(() => _isLoading = true);
-    final user = _supabase.auth.currentUser;
+    final user = _authService.currentUser;
     if (user == null) return;
 
     try {
-      await _supabase.auth.refreshSession();
-      final updatedUser = _supabase.auth.currentUser;
-      final data = await _supabase.from('profiles').select().eq('id', updatedUser!.id).single();
-      
-      setState(() {
-        _nameController.text = data['name'] ?? '';
-        _locController.text = data['location'] ?? '';
-        _emailController.text = updatedUser.email ?? '';
-        _imageUrl = data['image_url']; 
-        _currentTier = data['tier'] ?? 'free';
-        _currentSport = data['sport'] ?? 'Futsal';
-        _reliabilityScore = data['reliability_score'] ?? 100; // Added: Parse score from schema
-        _isEmailVerified = updatedUser.emailConfirmedAt != null;
-        _isLoading = false;
-      });
+      await _authService.refreshSession();
+      final profile = await _profileService.getCurrentProfile();
+
+      if (profile != null && mounted) {
+        setState(() {
+          _nameController.text = profile.name;
+          _locController.text = profile.location;
+          _emailController.text = _authService.currentUser?.email ?? '';
+          _imageUrl = profile.imageUrl;
+          _currentTier = profile.tier;
+          _currentSport = profile.sport;
+          _currentSkill = profile.skill;
+          _reliabilityScore = profile.reliabilityScore;
+          _isEmailVerified = _authService.currentUser?.emailConfirmedAt != null;
+          _isLoading = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       debugPrint("Fetch Error: $e");
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleSaveProfile() async {
+    final name = _nameController.text.trim();
+    final location = _locController.text.trim();
+
+    if (name.isEmpty) {
+      _showSnackBar("Name cannot be empty!", isError: true);
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      await _profileService.updateProfile(
+        name: name,
+        location: location.isEmpty ? 'Kuala Lumpur' : location,
+        sport: _currentSport,
+        skill: _currentSkill,
+        tier: _currentTier,
+        imageUrl: _imageUrl,
+      );
+
+      if (mounted) {
+        _showSnackBar("Profile updated successfully! ⚡", isError: false);
+      }
+    } catch (e) {
+      debugPrint("Save Profile Error: $e");
+      _showSnackBar("Update failed: $e", isError: true);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -74,7 +128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 50,
+      imageQuality: 75,
     );
 
     if (image == null) return;
@@ -82,50 +136,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isUploading = true);
 
     try {
-      final user = _supabase.auth.currentUser;
-      final fileName = '${user!.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      if (kIsWeb) {
-        final bytes = await image.readAsBytes();
-        await _supabase.storage.from('avatars').uploadBinary(
-          fileName,
-          bytes,
-          fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
-        );
-      } else {
-        final file = File(image.path);
-        await _supabase.storage.from('avatars').upload(
-          fileName,
-          file,
-          fileOptions: const FileOptions(upsert: true),
-        );
+      final publicUrl = await _profileService.uploadAvatar(image);
+      if (mounted) {
+        setState(() => _imageUrl = publicUrl);
+        _showSnackBar("Profile picture updated!", isError: false);
       }
-
-      final String publicUrl = _supabase.storage.from('avatars').getPublicUrl(fileName);
-      await _supabase.from('profiles').update({'image_url': publicUrl}).eq('id', user.id);
-
-      setState(() => _imageUrl = publicUrl);
-      _showSnackBar("Profile picture updated!", isError: false);
     } catch (e) {
       debugPrint("Detailed Upload Error: $e");
       _showSnackBar("Upload failed: $e", isError: true);
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
   Future<void> _handlePasswordUpdate(String oldPass, String newPass) async {
     try {
-      await _supabase.auth.signInWithPassword(
+      await _authService.signIn(
         email: _emailController.text.trim(),
         password: oldPass,
       );
-      await _supabase.auth.updateUser(UserAttributes(password: newPass));
+      await _authService.updatePassword(newPass);
       if (mounted) _showSnackBar("Password updated securely!", isError: false);
-    } on AuthException {
-      _showSnackBar("Current password incorrect.", isError: true);
     } catch (e) {
-      _showSnackBar("System Error: $e", isError: true);
+      _showSnackBar("Password update failed: $e", isError: true);
     }
   }
 
@@ -179,6 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showSnackBar(String msg, {required bool isError}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: const TextStyle(fontWeight: FontWeight.bold)),
       backgroundColor: isError ? Colors.redAccent : const Color(0xFF39FF14),
@@ -197,13 +233,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text("PROFILE", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.white)),
         actions: [
           IconButton(icon: const Icon(Icons.sync_rounded, color: Colors.white54), onPressed: _fetchProfile),
-          IconButton(icon: const Icon(Icons.check_circle, color: Color(0xFF39FF14)), onPressed: () async {
-            await _supabase.from('profiles').update({
-              'name': _nameController.text.trim(),
-              'location': _locController.text.trim(),
-            }).eq('id', _supabase.auth.currentUser!.id);
-            _showSnackBar("Cloud Sync Complete", isError: false);
-          }),
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Color(0xFF39FF14)),
+            onPressed: _isSaving ? null : _handleSaveProfile,
+          ),
         ],
       ),
       body: _isLoading 
@@ -214,7 +247,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildProfileHero(),
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
+                
+                const Text("ATHLETE BIO & DETAILS", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                const SizedBox(height: 12),
+                _buildEditField("Full Name", _nameController, Icons.person_outline),
+                const SizedBox(height: 12),
+                _buildEditField("Location / Base", _locController, Icons.location_on_outlined),
+                const SizedBox(height: 24),
+
+                const Text("PRIMARY SPORT", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                const SizedBox(height: 10),
+                _buildChipSelector(_sportsList, _currentSport, (val) => setState(() => _currentSport = val)),
+                const SizedBox(height: 24),
+
+                const Text("SKILL LEVEL", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                const SizedBox(height: 10),
+                _buildChipSelector(_skillLevels, _currentSkill, (val) => setState(() => _currentSkill = val)),
+                const SizedBox(height: 32),
+
                 const Text("ACCOUNT SECURITY", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
                 const SizedBox(height: 12),
                 _buildSettingTile(
@@ -230,26 +281,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: _showChangePasswordSheet,
                   trailing: const Icon(Icons.chevron_right, color: Colors.white24),
                 ),
-                const SizedBox(height: 32),
-                const Text("ATHLETE BIO", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                const SizedBox(height: 12),
-                _buildEditField("Full Name", _nameController, Icons.person_outline),
-                const SizedBox(height: 12),
-                _buildEditField("Location", _locController, Icons.location_on_outlined),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 _buildTierBanner(),
-                const SizedBox(height: 50),
+                const SizedBox(height: 40),
                 Center(
                   child: TextButton(
                     onPressed: () async {
                       final navigator = Navigator.of(context);
-                      await _supabase.auth.signOut();
-                      if (!mounted) return;
-                      navigator.pop();
+                      await _authService.signOut();
+                      if (mounted) {
+                        navigator.pop();
+                      }
                     },
                     child: const Text("LOGOUT SESSION", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 2)),
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -276,13 +323,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: const Color(0xFF39FF14),
                   child: CircleAvatar(
                     radius: 38,
-                    backgroundImage: _imageUrl != null 
-                        ? NetworkImage(_imageUrl!) 
+                    backgroundImage: (_imageUrl != null && _imageUrl!.startsWith('http'))
+                        ? NetworkImage(_imageUrl!)
                         : const AssetImage('assets/images/me.jpg') as ImageProvider,
                   ),
                 ),
-                if (_isUploading)
-                  const CircularProgressIndicator(color: Colors.black),
+                if (_isUploading) const CircularProgressIndicator(color: Colors.black),
                 if (!_isUploading)
                   Positioned(
                     bottom: 0,
@@ -302,19 +348,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(_nameController.text.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-                Text(_currentSport.toUpperCase(), style: const TextStyle(color: Color(0xFF39FF14), fontSize: 12, fontWeight: FontWeight.bold)),
+                Text("$_currentSport • $_currentSkill".toUpperCase(), style: const TextStyle(color: Color(0xFF39FF14), fontSize: 11, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                
-                // Added: Dynamic Reliability Score Badge
                 Row(
                   children: [
-                    const SizedBox(width: 4),
                     Text(
                       "RELIABILITY: $_reliabilityScore%",
                       style: TextStyle(
-                        color: _reliabilityScore >= 80 ? const Color(0xFF39FF14) : Colors.amber, 
-                        fontSize: 11, 
-                        fontWeight: FontWeight.bold
+                        color: _reliabilityScore >= 80 ? const Color(0xFF39FF14) : Colors.amber,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
@@ -324,6 +367,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildChipSelector(List<String> options, String selected, ValueChanged<String> onSelected) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((option) {
+        final isSelected = option == selected;
+        return ChoiceChip(
+          label: Text(option),
+          selected: isSelected,
+          onSelected: (bool sel) {
+            if (sel) onSelected(option);
+          },
+          selectedColor: const Color(0xFF39FF14),
+          backgroundColor: const Color(0xFF1A1A1A),
+          side: BorderSide(
+            color: isSelected ? const Color(0xFF39FF14) : Colors.white.withAlpha(20),
+          ),
+          labelStyle: TextStyle(
+            color: isSelected ? Colors.black : Colors.white70,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        );
+      }).toList(),
     );
   }
 
@@ -376,10 +447,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Switch(
             value: isPremium,
             activeThumbColor: const Color(0xFF39FF14),
-            onChanged: (val) async {
-              final newTier = val ? 'premium' : 'free';
-              await _supabase.from('profiles').update({'tier': newTier}).eq('id', _supabase.auth.currentUser!.id);
-              setState(() => _currentTier = newTier);
+            onChanged: (val) {
+              setState(() => _currentTier = val ? 'premium' : 'free');
             },
           )
         ],

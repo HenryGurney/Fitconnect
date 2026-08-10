@@ -6,7 +6,6 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'dart:async';
 import 'lobby_service.dart';
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class CreateLobbyPage extends StatefulWidget {
@@ -31,6 +30,10 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
   GoogleMapController? _mapController;
   LatLng _mapCenter = const LatLng(3.1390, 101.6869); // Default fallback (Kuala Lumpur)
   Timer? _debounceTimer; // Prevents spamming API lookups while typing
+
+  // Date and Time Control States
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 20, minute: 0);
 
   // Match Capacity State
   int _maxParticipants = 10;
@@ -80,7 +83,6 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
 
     if (permission == LocationPermission.deniedForever) return;
 
-    // Pull current physical device position smoothly
     Position position = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high)
     );
@@ -91,7 +93,6 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
       _mapCenter = userLatLng;
     });
 
-    // Move map viewport cleanly over to the native location match line
     _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(target: userLatLng, zoom: 15.0),
@@ -101,7 +102,6 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
 
   /// 3. Geocoding listener: Translates user typed selection into coordinates on the fly
   void _moveMapToLocation(String chosenVenue) async {
-    // Append regional context to guarantee the geocoding engine accurately places the pin
     String optimizedSearchQuery = "$chosenVenue, Kuala Lumpur, Malaysia";
 
     try {
@@ -114,7 +114,6 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
           _mapCenter = selectedCoords;
         });
 
-        // Glide the map viewport directly over the target sports center
         _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(
             CameraPosition(target: selectedCoords, zoom: 16.0),
@@ -123,6 +122,56 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
       }
     } catch (e) {
       debugPrint("Could not resolve specific coordinate bounds for choice: $e");
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF39FF14),
+              onPrimary: Colors.black,
+              surface: Color(0xFF141414),
+              onSurface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF141414)),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF39FF14),
+              onPrimary: Colors.black,
+              surface: Color(0xFF141414),
+              onSurface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF141414)),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedTime) {
+      setState(() => _selectedTime = picked);
     }
   }
 
@@ -156,6 +205,9 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
 
   @override
   Widget build(BuildContext context) {
+    final String formattedDate = "${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}";
+    final String formattedTime = _selectedTime.format(context);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -204,6 +256,74 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                     decoration: const InputDecoration(enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white10))),
                     items: _sportsList.map((sport) => DropdownMenuItem(value: sport, child: Text(sport))).toList(),
                     onChanged: (val) => setState(() => _selectedSport = val),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // --- MATCH DATE & TIME SELECTION ROW ---
+                  const Text("MATCH SCHEDULE (DATE & TIME)", style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _selectDate,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141414),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_rounded, color: Color(0xFF39FF14), size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("DATE", style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 2),
+                                      Text(formattedDate, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _selectTime,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141414),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.access_time_rounded, color: Color(0xFF39FF14), size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("TIME", style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 2),
+                                      Text(formattedTime, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 30),
 
@@ -260,7 +380,6 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                     suggestionsCallback: (search) async {
                       if (search.trim().isEmpty) return [];
 
-                      // ⚠️ CRITICAL: Ensure this string contains your actual Google Cloud Console API Key!
                       const String apiKey = "AIzaSyAZ7Acnl13fSeiAF9InEp0RpbFPd7tGSYA";
 
                       if (apiKey.contains("PASTE_YOUR")) {
@@ -268,16 +387,14 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                         return ['Type a specific location address...'];
                       }
 
-                      // Explicit target URL for Google Places Autocomplete Endpoint
                       final String url =
                           "https://maps.googleapis.com/maps/api/place/autocomplete/json"
                           "?input=${Uri.encodeComponent(search)}"
-                          "&components=country:my" // Locks search queries strictly to Malaysia venues
-                          "&types=establishment"   // Prioritizes actual businesses, stadiums, and sports clubs!
+                          "&components=country:my"
+                          "&types=establishment"
                           "&key=$apiKey";
 
                       try {
-                        // Send a structured HTTP GET request with standard browser headers
                         final response = await http.get(
                           Uri.parse(url),
                           headers: {"Accept": "application/json"},
@@ -286,7 +403,6 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                         if (response.statusCode == 200) {
                           final data = json.decode(response.body);
 
-                          // If Google rejected your API key, it returns a specific status string in the JSON payload
                           if (data['status'] == 'REQUEST_DENIED') {
                             debugPrint("❌ Google API Error: ${data['error_message']}");
                             return ['API Configuration Error'];
@@ -343,7 +459,7 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                             zoomControlsEnabled: false,
                             onMapCreated: (controller) => _mapController = controller,
                             onCameraMove: (position) {
-                              _mapCenter = position.target; // Seamless coordinate collection on viewport slide actions
+                              _mapCenter = position.target;
                             },
                           ),
                           const Center(
@@ -371,7 +487,9 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Player Limit Count", style: TextStyle(color: Colors.white60, fontSize: 15, fontWeight: FontWeight.w500)),
+                        const Expanded(
+                          child: Text("Player Limit Count", style: TextStyle(color: Colors.white60, fontSize: 15, fontWeight: FontWeight.w500)),
+                        ),
                         Row(
                           children: [
                             IconButton(
@@ -388,7 +506,7 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                                 "$_maxParticipants",
                                 style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
                               ),
-                            ), // <-- Verified matching parenthesis and brace for Padding here
+                            ),
                             IconButton(
                               onPressed: () {
                                 if (_maxParticipants < 30) {
@@ -435,55 +553,54 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
 
   /// Dispatches structured payloads directly to Supabase
   void _submitLobby() async {
-      final title = _titleController.text.trim();
-      final venue = _venueController.text.trim();
+    final title = _titleController.text.trim();
+    final venue = _venueController.text.trim();
 
-      // 1. CAPTURE THE MESSENGER STATE AT THE VERY START FOR SYNCHRONOUS CHECKS
-      final messenger = ScaffoldMessenger.of(context);
-      final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
-      if (title.isEmpty || venue.isEmpty) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text("Please fill in all layout blocks before launching."), backgroundColor: Colors.redAccent),
-        );
-        return;
-      }
+    if (title.isEmpty || venue.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Please fill in all layout blocks before launching."), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
 
-      final skillsToSubmit = _isOpenToAll ? ['Open to All'] : _selectedSkills;
+    final skillsToSubmit = _isOpenToAll ? ['Open to All'] : _selectedSkills;
+    final formattedDate = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    final formattedTime = _selectedTime.format(context);
 
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF39FF14))),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF39FF14))),
+    );
+
+    try {
+      await _lobbyService.createLobby(
+        title: title,
+        sport: _selectedSport ?? "Futsal",
+        locationName: venue,
+        lat: _mapCenter.latitude,
+        lng: _mapCenter.longitude,
+        skills: skillsToSubmit,
+        maxParticipants: _maxParticipants,
+        matchDate: formattedDate,
+        matchTime: formattedTime,
       );
 
-      try {
-        // Async network transaction with Supabase Database
-        await _lobbyService.createLobby(
-          title: title,
-          sport: _selectedSport ?? "Futsal",
-          locationName: venue,
-          lat: _mapCenter.latitude,
-          lng: _mapCenter.longitude,
-          skills: skillsToSubmit,
-          maxParticipants: _maxParticipants,
-        );
-
-        // 2. USE THE MOUNTED GUARD WITH CAPTURED NAVIGATOR STATE ON SUCCESS
-        if (mounted) {
-          navigator.pop(); // Remove progress loader HUD
-          navigator.pop(); // Return backwards to main dashboard screen
-        }
-      } catch (e) {
-        // 3. SECURE FALLBACK LOGIC IF THE DB TRANSACTION FAILS
-        if (mounted) {
-          navigator.pop(); // Dismiss loading spinner cleanly
-        }
-        
-        // Use the safely captured messenger reference here
-        messenger.showSnackBar(
-          SnackBar(content: Text("Database Insertion Error: $e"), backgroundColor: Colors.redAccent),
-        );
+      if (mounted) {
+        navigator.pop(); // Remove loader HUD
+        navigator.pop(); // Return to dashboard
       }
+    } catch (e) {
+      if (mounted) {
+        navigator.pop(); // Dismiss loader HUD
+      }
+      
+      messenger.showSnackBar(
+        SnackBar(content: Text("Database Insertion Error: $e"), backgroundColor: Colors.redAccent),
+      );
     }
+  }
 }
