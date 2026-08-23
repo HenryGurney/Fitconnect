@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'home_page.dart';
+import 'services/subscription_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -123,11 +125,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     // 3. Email Check for Step 2
-    if (_currentStep == 2 && _emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your email address!"), backgroundColor: Colors.redAccent),
-      );
-      return;
+    final email = _emailController.text.trim();
+    if (_currentStep == 2) {
+      if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please enter a valid email address (e.g. name@example.com)!"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
     }
 
     // 4. Password Check for Step 3
@@ -156,14 +164,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       User? user;
+      Session? session;
 
       // 1. Try Signing Up Auth User
       try {
         final AuthResponse res = await Supabase.instance.client.auth.signUp(
           email: email,
           password: password,
+          data: {'name': _nameController.text.trim()},
         );
         user = res.user;
+        session = res.session;
       } on AuthException catch (authErr) {
         // If Auth account already exists in Supabase Auth, sign in to retrieve session & complete missing profile
         final msg = authErr.message.toLowerCase();
@@ -174,8 +185,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               password: password,
             );
             user = signInRes.user;
+            session = signInRes.session;
           } catch (signInErr) {
-            throw Exception("User already registered in Supabase Auth. Please log in with your password.");
+            throw Exception("This email is already registered. Please log in with your password.");
           }
         } else {
           rethrow;
@@ -183,9 +195,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       user ??= Supabase.instance.client.auth.currentUser;
+      session ??= Supabase.instance.client.auth.currentSession;
 
       if (user != null) {
-        String imageUrl = 'assets/images/fitconnect.png';
+        String? imageUrl;
 
         // 2. Upload Profile Image to Supabase Storage bucket 'avatars'
         if (_selectedImage != null && _imageBytes != null) {
@@ -198,7 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             );
             imageUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
           } catch (uploadError) {
-            debugPrint("Storage avatar upload warning: $uploadError");
+            debugPrint("Storage avatar upload notice: $uploadError");
           }
         }
 
@@ -209,18 +222,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'sport': _selectedSport,
           'skill_level': _selectedSkill,
           'location': _locController.text.trim().isEmpty ? 'Kuala Lumpur' : _locController.text.trim(),
-          'image_url': imageUrl,
+          if (imageUrl != null) 'image_url': imageUrl,
+          'tier': 'free',
           'reliability_score': 100,
         });
+
+        // 4. Link with RevenueCat
+        await SubscriptionService().logIn(user.id);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Account created successfully! Welcome to FitConnect."),
+              content: Text("Account created successfully! Welcome to FitConnect. ⚡"),
               backgroundColor: Color(0xFF39FF14),
+              behavior: SnackBarBehavior.floating,
             ),
           );
-          Navigator.pop(context);
+
+          if (session != null) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+              (route) => false,
+            );
+          } else {
+            Navigator.pop(context);
+          }
         }
       }
     } on AuthException catch (e) {
@@ -285,7 +312,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 // STEP 3: PASSWORD
                 _tinderStep("My secret\npassword is", _inputField("Password", _passwordController, obscure: true)),
                 // STEP 4: SPORT
-                _tinderStep("My favorite\nsport is", _optionPicker(['Futsal', 'Badminton', 'Tennis', 'Basketball', 'Volleyball', 'Running'], _selectedSport, (v) => setState(() => _selectedSport = v!))),
+                _tinderStep("My favorite\nsport is", _optionPicker(['Futsal', 'Football', 'Badminton', 'Tennis', 'Pickleball', 'Basketball', 'Volleyball', 'Running'], _selectedSport, (v) => setState(() => _selectedSport = v!))),
                 // STEP 5: SKILL
                 _tinderStep("My skill\nlevel is", _optionPicker(['Beginner', 'Intermediate', 'Competitive', 'Pro'], _selectedSkill, (v) => setState(() => _selectedSkill = v!))),
                 // STEP 6: LOCATION
@@ -331,12 +358,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _photoPickerWidget() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         GestureDetector(
           onTap: () => _pickImage(ImageSource.gallery),
           child: Container(
-            width: 170,
-            height: 170,
+            width: 150,
+            height: 150,
             decoration: BoxDecoration(
               color: const Color(0xFF181818),
               shape: BoxShape.circle,
@@ -356,18 +384,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             child: ClipOval(
               child: _imageBytes != null
-                  ? Image.memory(_imageBytes!, fit: BoxFit.cover, width: 170, height: 170)
+                  ? Image.memory(_imageBytes!, fit: BoxFit.cover, width: 150, height: 150)
                   : const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.add_a_photo_rounded, color: Color(0xFF39FF14), size: 48),
-                        SizedBox(height: 10),
+                        Icon(Icons.add_a_photo_rounded, color: Color(0xFF39FF14), size: 40),
+                        SizedBox(height: 8),
                         Text(
                           "TAP TO ADD",
                           style: TextStyle(
                             color: Color(0xFF39FF14),
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: 11,
                             letterSpacing: 1,
                           ),
                         ),
@@ -376,7 +404,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -387,10 +415,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
               onPressed: () => _pickImage(ImageSource.camera),
-              icon: const Icon(Icons.camera_alt_rounded, size: 18),
+              icon: const Icon(Icons.camera_alt_rounded, size: 16),
               label: const Text("CAMERA"),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E1E1E),
@@ -398,21 +426,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
               onPressed: () => _pickImage(ImageSource.gallery),
-              icon: const Icon(Icons.photo_library_rounded, size: 18),
+              icon: const Icon(Icons.photo_library_rounded, size: 16),
               label: const Text("GALLERY"),
             ),
           ],
         ),
         if (_imageBytes != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.check_circle_rounded, color: Color(0xFF39FF14), size: 18),
+              Icon(Icons.check_circle_rounded, color: Color(0xFF39FF14), size: 16),
               SizedBox(width: 6),
               Text(
                 "Photo selected! Ready to continue.",
-                style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.bold, fontSize: 12),
               ),
             ],
           ),
@@ -422,16 +450,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _tinderStep(String title, Widget content) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900, height: 1.1)),
-          const SizedBox(height: 30),
-          content,
-        ],
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+                height: 1.1,
+              ),
+            ),
+            const SizedBox(height: 24),
+            content,
+          ],
+        ),
       ),
     );
   }

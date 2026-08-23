@@ -16,9 +16,21 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/matches',
+      name: 'matches',
+      component: () => import('../views/MatchesView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/users',
       name: 'users',
       component: () => import('../views/UsersView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/reports',
+      name: 'reports',
+      component: () => import('../views/ReportsView.vue'),
       meta: { requiresAuth: true }
     },
     // OPTIONAL: Redirect any unknown path to home

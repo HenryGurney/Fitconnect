@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'subscription_service.dart';
+
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -17,10 +19,14 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    return await _supabase.auth.signInWithPassword(
+    final res = await _supabase.auth.signInWithPassword(
       email: email,
       password: password,
     );
+    if (res.user != null) {
+      await SubscriptionService().logIn(res.user!.id);
+    }
+    return res;
   }
 
   /// Register a new user account
@@ -34,11 +40,15 @@ class AuthService {
       password: password,
       data: {'name': name},
     );
+    if (res.user != null) {
+      await SubscriptionService().logIn(res.user!.id);
+    }
     return res;
   }
 
   /// Sign out current user
   Future<void> signOut() async {
+    await SubscriptionService().logOut();
     await _supabase.auth.signOut();
   }
 

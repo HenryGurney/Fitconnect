@@ -61,7 +61,7 @@ void main() {
       expect(json['id'], equals('user-456'));
       expect(json['name'], equals('Aina'));
       expect(json['sport'], equals('Tennis'));
-      expect(json['skill'], equals('Pro'));
+      expect(json['skill_level'], equals('Pro'));
       expect(json['location'], equals('Subang Jaya'));
       expect(json['tier'], equals('free'));
       expect(json['reliability_score'], equals(100));

@@ -8,6 +8,8 @@ import 'models/models.dart';
 import 'services/profile_service.dart';
 import 'services/auth_service.dart';
 import 'services/match_service.dart';
+import 'widgets/pro_badge_widget.dart';
+import 'widgets/premium_upgrade_modal.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
@@ -22,17 +24,23 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   final AuthService _authService = AuthService();
   final MatchService _matchService = MatchService();
 
+  static const int maxFreeDailySwipes = 10;
+
   bool _isLoading = true;
   ProfileModel? _userProfile;
   List<ProfileModel> _athleteProfiles = [];
   String _selectedSportFilter = 'ALL';
+  int _todaySwipeCount = 0;
 
   final List<String> _sportFilters = const [
     'ALL',
     'FUTSAL',
+    'FOOTBALL',
     'TENNIS',
     'BADMINTON',
+    'PICKLEBALL',
     'BASKETBALL',
+    'VOLLEYBALL',
     'RUNNING',
   ];
 
@@ -53,11 +61,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     try {
       final currentProf = await _profileService.getCurrentProfile();
       final otherAthletes = await _profileService.fetchOtherAthletes();
+      int todaySwipes = 0;
+      if (!(currentProf?.isPremium ?? false)) {
+        todaySwipes = await _matchService.fetchTodaySwipeCount();
+      }
 
       if (mounted) {
         setState(() {
           _userProfile = currentProf;
           _athleteProfiles = otherAthletes;
+          _todaySwipeCount = todaySwipes;
           _isLoading = false;
         });
       }
@@ -80,6 +93,52 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF141414),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+            SizedBox(width: 10),
+            Text(
+              "Log Out",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to log out of your session? You will need to sign in again to access your matches and messages.",
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2B0F0F),
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent, width: 1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text("LOG OUT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true) return;
+    if (!mounted) return;
+
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
@@ -106,11 +165,70 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     final safeIndex = previousIndex % activeDeck.length;
     final athlete = activeDeck[safeIndex];
 
+    final isPro = _userProfile?.isPremium ?? false;
+
+    // 1. Free User 10-Swipe Limit Enforcement
+    if (!isPro && _todaySwipeCount >= maxFreeDailySwipes) {
+      PremiumUpgradeModal.show(context, onUpgradeSuccess: () {
+        _loadDiscoveryData();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.lock_clock_rounded, color: Color(0xFFFFD700), size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "You've used today's 10 free swipes! Upgrade to FitConnect PRO for Unlimited Swipes ⚡",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E1E1E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return false; // Blocks any further swiping!
+    }
+
     String action = 'pass';
     if (direction == CardSwiperDirection.right) {
       action = 'like';
     } else if (direction == CardSwiperDirection.top) {
+      // SuperConnect PRO exclusivity check
+      if (!isPro) {
+        PremiumUpgradeModal.show(context, onUpgradeSuccess: () {
+          _loadDiscoveryData();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.workspace_premium, color: Color(0xFFFFD700), size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "SuperConnect is an exclusive FitConnect PRO feature! ⭐",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E1E1E),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        return false; // Prevents swipe for non-pro users
+      }
       action = 'superlike';
+    }
+
+    if (!isPro) {
+      setState(() => _todaySwipeCount++);
     }
 
     if (action != 'pass') {
@@ -141,7 +259,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
           decoration: BoxDecoration(
             color: const Color(0xFF121212),
             borderRadius: BorderRadius.circular(30),
@@ -158,97 +276,99 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               )
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isSuperMatch ? Icons.star_rounded : Icons.flash_on_rounded,
-                color: isSuperMatch ? const Color(0xFF00E5FF) : const Color(0xFF39FF14),
-                size: 70,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isSuperMatch ? "SUPER MATCH!" : "IT'S A MATCH!",
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSuperMatch ? Icons.star_rounded : Icons.flash_on_rounded,
                   color: isSuperMatch ? const Color(0xFF00E5FF) : const Color(0xFF39FF14),
+                  size: 60,
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              // Side-by-side Dual Avatars
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _avatarRing(_userProfile?.imageUrl, _userProfile?.name ?? 'You'),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Icon(Icons.bolt, color: Colors.white54, size: 28),
+                const SizedBox(height: 8),
+                Text(
+                  isSuperMatch ? "SUPER MATCH!" : "IT'S A MATCH!",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                    color: isSuperMatch ? const Color(0xFF00E5FF) : const Color(0xFF39FF14),
                   ),
-                  _avatarRing(athlete.imageUrl, athlete.name),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-              Text(
-                "You and ${athlete.name} are ready for a ${athlete.sport} session!",
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
-              ),
-              const SizedBox(height: 24),
-
-              // Quick Action Buttons
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isSuperMatch ? const Color(0xFF00E5FF) : const Color(0xFF39FF14),
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  icon: const Icon(Icons.chat_bubble_rounded, size: 20),
-                  label: const Text("SEND MESSAGE", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChatDetailScreen(athlete: athlete),
-                      ),
-                    );
-                  },
                 ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white24),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  icon: const Icon(Icons.add_circle_outline, size: 18),
-                  label: Text("CREATE LOBBY WITH ${athlete.name.toUpperCase()}"),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
-                    );
-                  },
+                const SizedBox(height: 14),
+
+                // Side-by-side Dual Avatars
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _avatarRing(_userProfile?.imageUrl, _userProfile?.name ?? 'You'),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Icon(Icons.bolt, color: Colors.white54, size: 24),
+                    ),
+                    _avatarRing(athlete.imageUrl, athlete.name),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("KEEP SWIPING", style: TextStyle(color: Colors.white38, fontSize: 12)),
-              ),
-            ],
+
+                const SizedBox(height: 16),
+                Text(
+                  "You and ${athlete.name} are ready for a ${athlete.sport} session!",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+
+                // Quick Action Buttons
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isSuperMatch ? const Color(0xFF00E5FF) : const Color(0xFF39FF14),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                    label: const Text("SEND MESSAGE", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatDetailScreen(athlete: athlete),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white24),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.add_circle_outline, size: 18),
+                    label: const Text("CREATE MATCH LOBBY", style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("KEEP SWIPING", style: TextStyle(color: Colors.white38, fontSize: 12)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -338,13 +458,23 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  athlete.name,
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                  ),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        athlete.name,
+                                        style: const TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    if (athlete.isPremium) ...[
+                                      const SizedBox(width: 8),
+                                      const ProBadgeWidget(),
+                                    ],
+                                  ],
                                 ),
                                 Text(
                                   athlete.sport.toUpperCase(),
@@ -524,35 +654,42 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 },
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundColor: const Color(0xFF1A1A1A),
-                  child: ClipOval(
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 16, height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF39FF14)),
-                          )
-                        : (avatarUrl != null && avatarUrl.startsWith('http')
-                            ? Image.network(
-                                avatarUrl,
-                                fit: BoxFit.cover,
-                                width: 40, height: 40,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.person, color: Color(0xFF39FF14)),
-                              )
-                            : Image.asset(
-                                'assets/images/me.jpg',
-                                fit: BoxFit.cover,
-                                width: 40, height: 40,
-                                errorBuilder: (context, error, stackTrace) => 
-                                    const Icon(Icons.person, color: Color(0xFF39FF14)),
-                              )),
+                  backgroundColor: (_userProfile?.isPremium ?? false)
+                      ? const Color(0xFFFFD700)
+                      : const Color(0xFF1A1A1A),
+                  child: CircleAvatar(
+                    radius: (_userProfile?.isPremium ?? false) ? 18 : 19,
+                    child: ClipOval(
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF39FF14)),
+                            )
+                          : (avatarUrl != null && avatarUrl.startsWith('http')
+                              ? Image.network(
+                                  avatarUrl,
+                                  fit: BoxFit.cover,
+                                  width: 40, height: 40,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.person, color: Color(0xFF39FF14)),
+                                )
+                              : Image.asset(
+                                  'assets/images/me.jpg',
+                                  fit: BoxFit.cover,
+                                  width: 40, height: 40,
+                                  errorBuilder: (context, error, stackTrace) => 
+                                      const Icon(Icons.person, color: Color(0xFF39FF14)),
+                                )),
+                    ),
                   ),
                 ),
               ),
               Container(
                 height: 12, width: 12,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF39FF14),
+                  color: (_userProfile?.isPremium ?? false)
+                      ? const Color(0xFFFFD700)
+                      : const Color(0xFF39FF14),
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFF080808), width: 2),
                 ),
@@ -568,6 +705,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          if (!(_userProfile?.isPremium ?? false))
+            IconButton(
+              tooltip: "FitConnect PRO",
+              icon: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD700)),
+              onPressed: () {
+                PremiumUpgradeModal.show(
+                  context,
+                  onUpgradeSuccess: () => _loadDiscoveryData(),
+                );
+              },
+            ),
           IconButton(
             onPressed: _handleLogout, 
             icon: const Icon(Icons.logout, color: Color(0xFF39FF14)),
@@ -619,7 +767,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
+
+                // Free vs PRO Swipe Quota Indicator Pill
+                _buildSwipeQuotaBar(),
+
+                const SizedBox(height: 6),
 
                 // Card Swiper Engine
                 Expanded(
@@ -767,14 +920,25 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                             ],
                                           ),
                                           const SizedBox(height: 10),
-                                          Text(
-                                            player.name,
-                                            style: const TextStyle(
-                                              fontSize: 34,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.white,
-                                              height: 1.1,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  player.name,
+                                                  style: const TextStyle(
+                                                    fontSize: 34,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                    height: 1.1,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (player.isPremium) ...[
+                                                const SizedBox(width: 8),
+                                                const ProBadgeWidget(isCompact: true),
+                                              ],
+                                            ],
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
@@ -791,8 +955,15 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                             children: [
                                               const Icon(Icons.location_on, size: 15, color: Colors.white60),
                                               const SizedBox(width: 4),
-                                              Text(player.location, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                                              const Spacer(),
+                                              Expanded(
+                                                child: Text(
+                                                  player.location,
+                                                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                                  overflow: TextOverflow.ellipsis,
+                                                  maxLines: 1,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                 decoration: BoxDecoration(
@@ -866,22 +1037,55 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                       _controlBtn(
                         icon: Icons.close_rounded,
                         color: Colors.redAccent,
-                        onTap: () => controller.swipe(CardSwiperDirection.left),
+                        onTap: () => _triggerManualSwipe(CardSwiperDirection.left),
                         size: 52,
                       ),
                       // 3. SUPER CONNECT (TOP)
                       _controlBtn(
                         icon: Icons.star_rounded,
                         color: const Color(0xFF00E5FF),
-                        onTap: () => controller.swipe(CardSwiperDirection.top),
+                        onTap: () {
+                          if (!(_userProfile?.isPremium ?? false)) {
+                            PremiumUpgradeModal.show(context, onUpgradeSuccess: () {
+                              _loadDiscoveryData();
+                            });
+                          } else {
+                            _triggerManualSwipe(CardSwiperDirection.top);
+                          }
+                        },
                         size: 44,
+                        badge: !(_userProfile?.isPremium ?? false)
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                                      blurRadius: 4,
+                                    )
+                                  ],
+                                ),
+                                child: const Text(
+                                  "PRO",
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              )
+                            : null,
                       ),
                       // 4. CONNECT (RIGHT - PRIMARY)
                       _controlBtn(
                         icon: Icons.bolt_rounded,
                         color: Colors.black,
                         backgroundColor: const Color(0xFF39FF14),
-                        onTap: () => controller.swipe(CardSwiperDirection.right),
+                        onTap: () => _triggerManualSwipe(CardSwiperDirection.right),
                         size: 56,
                         isPrimary: true,
                       ),
@@ -901,6 +1105,102 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  void _triggerManualSwipe(CardSwiperDirection dir) {
+    final isPro = _userProfile?.isPremium ?? false;
+    if (!isPro && _todaySwipeCount >= maxFreeDailySwipes) {
+      PremiumUpgradeModal.show(context, onUpgradeSuccess: () {
+        _loadDiscoveryData();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.lock_clock_rounded, color: Color(0xFFFFD700), size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "You've used today's 10 free swipes! Upgrade to FitConnect PRO for Unlimited Swipes ⚡",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E1E1E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+    controller.swipe(dir);
+  }
+
+  Widget _buildSwipeQuotaBar() {
+    final isPro = _userProfile?.isPremium ?? false;
+    final remaining = (maxFreeDailySwipes - _todaySwipeCount).clamp(0, maxFreeDailySwipes);
+
+    return GestureDetector(
+      onTap: isPro
+          ? null
+          : () {
+              PremiumUpgradeModal.show(context, onUpgradeSuccess: () {
+                _loadDiscoveryData();
+              });
+            },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isPro
+              ? const Color(0xFFFFD700).withValues(alpha: 0.1)
+              : (remaining <= 2
+                  ? Colors.redAccent.withValues(alpha: 0.12)
+                  : const Color(0xFF161616)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isPro
+                ? const Color(0xFFFFD700).withValues(alpha: 0.4)
+                : (remaining <= 2
+                    ? Colors.redAccent.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.08)),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isPro
+                  ? Icons.workspace_premium_rounded
+                  : (remaining == 0 ? Icons.lock_clock_rounded : Icons.bolt_rounded),
+              size: 14,
+              color: isPro
+                  ? const Color(0xFFFFD700)
+                  : (remaining <= 2 ? Colors.redAccent : const Color(0xFF39FF14)),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              isPro
+                  ? "PRO: UNLIMITED SWIPES"
+                  : "$remaining / $maxFreeDailySwipes Free Swipes Left Today",
+              style: TextStyle(
+                color: isPro
+                    ? const Color(0xFFFFD700)
+                    : (remaining <= 2 ? Colors.redAccent : Colors.white70),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            if (!isPro) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.arrow_forward_ios, size: 9, color: Color(0xFFFFD700)),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -964,8 +1264,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     required double size,
     Color? backgroundColor,
     bool isPrimary = false,
+    Widget? badge,
   }) {
-    return Container(
+    final btn = Container(
       height: size,
       width: size,
       decoration: BoxDecoration(
@@ -990,5 +1291,21 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         icon: Icon(icon, color: color, size: size * 0.52),
       ),
     );
+
+    if (badge != null) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          btn,
+          Positioned(
+            top: -2,
+            right: -2,
+            child: badge,
+          ),
+        ],
+      );
+    }
+
+    return btn;
   }
 }

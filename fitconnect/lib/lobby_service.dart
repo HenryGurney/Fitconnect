@@ -10,19 +10,38 @@ class LobbyService {
 
   /// 1. Fetches sports dropdown catalog from Supabase
   Future<List<String>> fetchSportsList() async {
+    const defaultSports = [
+      'Futsal',
+      'Football',
+      'Badminton',
+      'Tennis',
+      'Pickleball',
+      'Basketball',
+      'Volleyball',
+      'Running'
+    ];
+
     try {
       final List<dynamic> data = await _supabase
           .from('sports')
           .select('name')
           .order('name', ascending: true);
 
-      return data
+      final dbSports = data
           .map((item) => item['name']?.toString() ?? '')
           .where((name) => name.isNotEmpty)
           .toList();
+
+      if (dbSports.isEmpty) {
+        return defaultSports;
+      }
+
+      // Merge database sports with default catalog to guarantee all sports appear
+      final Set<String> merged = {...defaultSports, ...dbSports};
+      return merged.toList();
     } catch (e) {
       debugPrint("Error fetching sports list: $e");
-      return ['Futsal', 'Badminton', 'Tennis', 'Basketball', 'Volleyball'];
+      return defaultSports;
     }
   }
 
@@ -37,11 +56,20 @@ class LobbyService {
     required int maxParticipants,
     String? matchDate,
     String? matchTime,
+    String? courtFee,
+    bool isSpotlight = false,
   }) async {
     if (currentUserId == null) throw Exception("User must be logged in to host events.");
 
+    // Attach fee badge / tags to title if provided
+    String finalTitle = title;
+    if (courtFee != null && courtFee.trim().isNotEmpty && courtFee != 'Free (Casual)') {
+      final cleanFee = courtFee.trim();
+      finalTitle = '$title • $cleanFee';
+    }
+
     final payload = <String, dynamic>{
-      'title': title,
+      'title': finalTitle,
       'sport': sport,
       'location_name': locationName,
       'latitude': lat,
@@ -68,7 +96,14 @@ class LobbyService {
 
   /// 4. Updates status variables for an entry (Executed by match host profiles)
   Future<void> updateRequestStatus(String requestId, String newStatus) async {
-    await _supabase.from('lobby_participants').update({'status': newStatus}).eq('id', requestId);
+    final dynamic targetId = int.tryParse(requestId) ?? requestId;
+    await _supabase.from('lobby_participants').update({'status': newStatus}).eq('id', targetId);
+  }
+
+  /// 4b. Removes or kicks a participant from the lobby roster
+  Future<void> removeParticipant(String requestId) async {
+    final dynamic targetId = int.tryParse(requestId) ?? requestId;
+    await _supabase.from('lobby_participants').delete().eq('id', targetId);
   }
 
   /// 5. Stream of raw lobbies mapped to LobbyModel objects (excluding admin hosted lobbies)
@@ -182,7 +217,35 @@ class LobbyService {
         .eq('user_id', currentUserId!);
   }
 
-  /// 11. Update existing lobby details
+  /// 12. Stream of participant records for the current user (joined or requested matches)
+  Stream<List<LobbyParticipantModel>> getMyJoinedRequestsStream() {
+    if (currentUserId == null) return const Stream.empty();
+    return _supabase
+        .from('lobby_participants')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', currentUserId!)
+        .map((list) => list.map((json) => LobbyParticipantModel.fromJson(json)).toList());
+  }
+
+  /// 13. Helper to fetch single lobby details by ID
+  Future<LobbyModel?> fetchLobbyById(String lobbyId) async {
+    try {
+      final dynamic targetId = int.tryParse(lobbyId) ?? lobbyId;
+      final data = await _supabase
+          .from('lobbies')
+          .select()
+          .eq('id', targetId)
+          .maybeSingle();
+
+      if (data == null) return null;
+      return LobbyModel.fromJson(data);
+    } catch (e) {
+      debugPrint("Error fetching lobby by ID ($lobbyId): $e");
+      return null;
+    }
+  }
+
+  /// 14. Update existing lobby details
   Future<void> updateLobby({
     required String lobbyId,
     required String title,

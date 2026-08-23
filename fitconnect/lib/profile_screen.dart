@@ -4,6 +4,9 @@ import 'dart:async';
 
 import 'services/profile_service.dart';
 import 'services/auth_service.dart';
+import 'widgets/pro_badge_widget.dart';
+import 'widgets/premium_upgrade_modal.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -33,8 +36,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final List<String> _sportsList = const [
     'Futsal',
+    'Football',
     'Tennis',
     'Badminton',
+    'Pickleball',
     'Basketball',
     'Volleyball',
     'Running',
@@ -285,15 +290,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildTierBanner(),
                 const SizedBox(height: 40),
                 Center(
-                  child: TextButton(
-                    onPressed: () async {
-                      final navigator = Navigator.of(context);
-                      await _authService.signOut();
-                      if (mounted) {
-                        navigator.pop();
-                      }
-                    },
-                    child: const Text("LOGOUT SESSION", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                  child: TextButton.icon(
+                    onPressed: _handleLogout,
+                    icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 18),
+                    label: const Text("LOGOUT SESSION", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -303,13 +303,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF141414),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+            SizedBox(width: 10),
+            Text(
+              "Log Out",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to log out of your session? You will need to sign in again to access your profile and matches.",
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2B0F0F),
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent, width: 1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text("LOG OUT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true) return;
+    if (!mounted) return;
+
+    final navigator = Navigator.of(context);
+    await _authService.signOut();
+    if (mounted) {
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   Widget _buildProfileHero() {
+    final isPremium = _currentTier == 'premium';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withAlpha(13)),
+        border: Border.all(
+          color: isPremium ? const Color(0xFFFFD700).withValues(alpha: 0.35) : Colors.white.withAlpha(13),
+          width: isPremium ? 1.5 : 1.0,
+        ),
       ),
       child: Row(
         children: [
@@ -320,9 +381,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 40,
-                  backgroundColor: const Color(0xFF39FF14),
+                  backgroundColor: isPremium ? const Color(0xFFFFD700) : const Color(0xFF39FF14),
                   child: CircleAvatar(
-                    radius: 38,
+                    radius: 37,
                     backgroundImage: (_imageUrl != null && _imageUrl!.startsWith('http'))
                         ? NetworkImage(_imageUrl!)
                         : const AssetImage('assets/images/me.jpg') as ImageProvider,
@@ -335,7 +396,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Color(0xFF39FF14), shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: isPremium ? const Color(0xFFFFD700) : const Color(0xFF39FF14),
+                        shape: BoxShape.circle,
+                      ),
                       child: const Icon(Icons.camera_alt, size: 14, color: Colors.black),
                     ),
                   ),
@@ -347,8 +411,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_nameController.text.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-                Text("$_currentSport • $_currentSkill".toUpperCase(), style: const TextStyle(color: Color(0xFF39FF14), fontSize: 11, fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _nameController.text.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isPremium) ...[
+                      const SizedBox(width: 8),
+                      const ProBadgeWidget(isCompact: true),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "$_currentSport • $_currentSkill".toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF39FF14),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -432,25 +522,159 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildTierBanner() {
     bool isPremium = _currentTier == 'premium';
+
+    if (isPremium) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF142012),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFF39FF14), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF39FF14).withValues(alpha: 0.15),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD700), size: 28),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "FITCONNECT PRO ACTIVE",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        "All athlete perks & spotlight lobbies enabled",
+                        style: TextStyle(color: Color(0xFF39FF14), fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                ProBadgeWidget(),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white12, height: 1),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Subscription Tier (Toggle for Testing)",
+                  style: TextStyle(color: Colors.white60, fontSize: 11),
+                ),
+                Switch(
+                  value: true,
+                  activeThumbColor: const Color(0xFF39FF14),
+                  onChanged: (val) {
+                    setState(() => _currentTier = val ? 'premium' : 'free');
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isPremium ? const Color(0xFF39FF14) : Colors.white10),
+        color: const Color(0xFF161616),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.35)),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1F1A0B),
+            Color(0xFF141414),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(isPremium ? Icons.workspace_premium : Icons.stars, color: const Color(0xFF39FF14)),
-          const SizedBox(width: 16),
-          Expanded(child: Text(isPremium ? "PREMIUM STATUS" : "FREE ACCOUNT", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12))),
-          Switch(
-            value: isPremium,
-            activeThumbColor: const Color(0xFF39FF14),
-            onChanged: (val) {
-              setState(() => _currentTier = val ? 'premium' : 'free');
-            },
-          )
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.bolt_rounded, color: Color(0xFFFFD700), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "UPGRADE TO PRO ⚡",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    Text(
+                      "Unlimited swipes, pinned lobbies & PRO crown",
+                      style: TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF39FF14),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                PremiumUpgradeModal.show(
+                  context,
+                  onUpgradeSuccess: () {
+                    setState(() => _currentTier = 'premium');
+                    _fetchProfile();
+                  },
+                );
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.workspace_premium_rounded, size: 18),
+                  SizedBox(width: 6),
+                  Text(
+                    "UNLOCK FITCONNECT PRO",
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.8),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

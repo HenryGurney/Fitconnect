@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'splash_screen.dart'; // 1. IMPORT YOUR SPLASH SCREEN
+import 'services/subscription_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,6 +10,9 @@ Future<void> main() async {
     url: 'https://tezarjmgnvsgfkfjwqmu.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlemFyam1nbnZzZ2ZrZmp3cW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNDIyNDMsImV4cCI6MjA5MzkxODI0M30.Zy5UrueA2kxw2450LtqqMHCicGzL91rbr0KnVXke7sk',
   );
+
+  final currentUser = Supabase.instance.client.auth.currentUser;
+  await SubscriptionService().init(userId: currentUser?.id);
 
   runApp(const FitConnectApp());
 }

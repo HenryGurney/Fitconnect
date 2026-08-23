@@ -23,6 +23,25 @@ class MatchService {
     }
   }
 
+  /// Fetches count of swipes performed today by current user
+  Future<int> fetchTodaySwipeCount() async {
+    if (currentUserId == null) return 0;
+    try {
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
+      final List<dynamic> data = await _supabase
+          .from('swipes')
+          .select('target_user_id')
+          .eq('user_id', currentUserId!)
+          .gte('created_at', startOfDay);
+
+      return data.length;
+    } catch (e) {
+      debugPrint("Info: error fetching today swipe count: $e");
+      return 0;
+    }
+  }
+
   /// Records a swipe in Supabase and returns true if it's a mutual match
   Future<bool> recordSwipe({
     required String targetUserId,

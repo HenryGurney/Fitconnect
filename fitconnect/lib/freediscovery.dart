@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'models/models.dart';
+import 'widgets/pro_badge_widget.dart';
 
 class FreeDiscovery extends StatelessWidget {
   final List<LobbyModel> lobbies;
@@ -67,13 +68,22 @@ class FreeDiscovery extends StatelessWidget {
                         fontSize: 10,
                       ),
                     ),
-                    Text(
-                      "BY ${hostName.toUpperCase()}",
-                      style: const TextStyle(
-                        color: Colors.white24,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "BY ${hostName.toUpperCase()}",
+                          style: const TextStyle(
+                            color: Colors.white24,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (lobby.hostProfile?.isPremium ?? false) ...[
+                          const SizedBox(width: 4),
+                          const ProBadgeWidget(isCompact: true),
+                        ],
+                      ],
                     ),
                   ],
                 ),

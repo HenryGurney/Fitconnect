@@ -18,6 +18,11 @@ class ProfileModel {
     return tierLower == 'admin' || nameLower == 'admin' || nameLower.startsWith('admin');
   }
 
+  bool get isPremium {
+    final tierLower = tier.toLowerCase();
+    return tierLower == 'premium' || tierLower == 'pro' || isAdmin;
+  }
+
   const ProfileModel({
     required this.id,
     required this.name,
@@ -37,7 +42,13 @@ class ProfileModel {
       sport: json['sport']?.toString() ?? 'Futsal',
       skill: json['skill_level']?.toString() ?? json['skill']?.toString() ?? 'Intermediate',
       location: json['location']?.toString() ?? 'Kuala Lumpur',
-      imageUrl: json['image_url']?.toString(),
+      imageUrl: json['image_url']?.toString() ??
+          json['imageUrl']?.toString() ??
+          json['avatar_url']?.toString() ??
+          json['avatarUrl']?.toString() ??
+          json['photo_url']?.toString() ??
+          json['photoUrl']?.toString() ??
+          json['profile_image']?.toString(),
       tier: json['tier']?.toString() ?? 'free',
       reliabilityScore: json['reliability_score'] is int
           ? json['reliability_score'] as int
@@ -153,6 +164,36 @@ class LobbyModel {
       matchTime: json['match_time']?.toString() ?? json['time']?.toString(),
       hostProfile: parsedHostProfile,
     );
+  }
+
+  /// Extracts clean title without fee or gender bracket tags
+  String get cleanTitle {
+    var text = title;
+    text = text.replaceAll(RegExp(r'•\s*\[[^\]]*\]?'), '');
+    text = text.replaceAll(RegExp(r'\[[^\]]*\]?'), '');
+    text = text.replaceAll(RegExp(r'[\[\]]'), '');
+    text = text.replaceAll(RegExp(r'•\s*$'), '');
+    final trimmed = text.trim();
+    return trimmed.isNotEmpty ? trimmed : title;
+  }
+
+  /// Extracts fee per pax (e.g. "RM 10 / pax" or "Free")
+  String? get feePerPax {
+    final feeMatch = RegExp(r'(?:\[)?(RM\s*[\d\.]+(?:\s*\/\s*pax)?|Free(?:[^\s\]]*)?)(?:\])?', caseSensitive: false).firstMatch(title);
+    if (feeMatch != null) {
+      final fee = feeMatch.group(1)?.replaceAll(RegExp(r'[\[\]]'), '').trim();
+      if (fee != null && fee.isNotEmpty) {
+        return fee;
+      }
+    }
+    return null;
+  }
+
+  /// Extracts gender restriction (e.g. "Male Only", "Female Only")
+  String? get genderRestriction {
+    if (title.toLowerCase().contains('male only')) return 'Male Only';
+    if (title.toLowerCase().contains('female only')) return 'Female Only';
+    return null;
   }
 
   Map<String, dynamic> toJson() {

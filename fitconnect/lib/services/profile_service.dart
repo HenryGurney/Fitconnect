@@ -76,11 +76,11 @@ class ProfileService {
     }
   }
 
-  /// Update user profile details
+  /// Update user profile details (supports partial updates)
   Future<void> updateProfile({
-    required String name,
-    required String location,
-    required String sport,
+    String? name,
+    String? location,
+    String? sport,
     String? skill,
     String? tier,
     String? imageUrl,
@@ -89,15 +89,22 @@ class ProfileService {
     if (user == null) throw Exception("User not authenticated.");
 
     final Map<String, dynamic> updates = {
-      'name': name,
-      'location': location,
-      'sport': sport,
+      if (name != null) 'name': name,
+      if (location != null) 'location': location,
+      if (sport != null) 'sport': sport,
       if (skill != null) 'skill_level': skill,
       if (tier != null) 'tier': tier,
       if (imageUrl != null) 'image_url': imageUrl,
     };
 
-    await _supabase.from('profiles').update(updates).eq('id', user.id);
+    if (updates.isNotEmpty) {
+      await _supabase.from('profiles').update(updates).eq('id', user.id);
+    }
+  }
+
+  /// Convenience method to update user subscription tier
+  Future<void> updateTier(String tier) async {
+    await updateProfile(tier: tier);
   }
 
   /// Upload avatar image to Supabase Storage bucket ('avatars')
@@ -127,5 +134,56 @@ class ProfileService {
     await _supabase.from('profiles').update({'image_url': publicUrl}).eq('id', user.id);
 
     return publicUrl;
+  }
+
+  /// Adjust reliability score (delta can be +3 for MVP, +2 for upvotes, -5 for late dropouts, -15 for no-shows)
+  Future<int> adjustReliabilityScore(String userId, int delta) async {
+    try {
+      final current = await getProfileById(userId);
+      final int currentScore = current?.reliabilityScore ?? 100;
+      final int newScore = (currentScore + delta).clamp(0, 100);
+
+      await _supabase.from('profiles').update({
+        'reliability_score': newScore,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      debugPrint("Successfully updated reliability score for $userId: $currentScore -> $newScore (delta: $delta)");
+      return newScore;
+    } catch (e) {
+      debugPrint("Error adjusting reliability score for $userId: $e");
+      return 100;
+    }
+  }
+
+  /// Submit incident report against a player and apply penalty
+  Future<void> submitPlayerReport({
+    required String reportedUserId,
+    required String reason,
+    String? notes,
+    String? lobbyId,
+    int penalty = 10,
+  }) async {
+    final reporterId = _supabase.auth.currentUser?.id;
+
+    // 1. Record incident in reports table if available
+    try {
+      await _supabase.from('reports').insert({
+        'reporter_id': reporterId,
+        'reported_user_id': reportedUserId,
+        'lobby_id': lobbyId,
+        'reason': reason,
+        'notes': notes,
+        'penalty_applied': penalty,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint("Note: reports table not configured or insert error: $e");
+    }
+
+    // 2. Automatically adjust the reported user's reliability score
+    if (penalty > 0) {
+      await adjustReliabilityScore(reportedUserId, -penalty);
+    }
   }
 }

@@ -63,6 +63,68 @@ class ChatService {
     }
   }
 
+  /// Send a message inside a match lobby group chat (for Host and approved players)
+  Future<void> sendLobbyMessage({
+    required String lobbyId,
+    required String content,
+  }) async {
+    if (currentUserId == null || content.trim().isEmpty) return;
+
+    try {
+      // Primary: Insert into dedicated lobby_messages table
+      await _supabase.from('lobby_messages').insert({
+        'lobby_id': lobbyId.toString(),
+        'sender_id': currentUserId,
+        'content': content.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint("lobby_messages table not detected or failed, trying fallback to messages table: $e");
+      try {
+        await _supabase.from('messages').insert({
+          'sender_id': currentUserId,
+          'receiver_id': 'lobby_$lobbyId',
+          'content': content.trim(),
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      } catch (fallbackError) {
+        debugPrint("Fatal error sending squad message: $fallbackError");
+        rethrow;
+      }
+    }
+  }
+
+  /// Real-time stream of messages inside a match lobby group chat
+  Stream<List<MessageModel>> getLobbyMessagesStream(String lobbyId) {
+    try {
+      return _supabase
+          .from('lobby_messages')
+          .stream(primaryKey: ['id'])
+          .eq('lobby_id', lobbyId.toString())
+          .order('created_at', ascending: true)
+          .map((list) => list
+              .map((json) => MessageModel.fromJson({
+                    'id': json['id']?.toString() ?? '',
+                    'sender_id': json['sender_id']?.toString() ?? '',
+                    'receiver_id': json['lobby_id']?.toString() ?? lobbyId,
+                    'content': json['content']?.toString() ?? '',
+                    'created_at': json['created_at'],
+                  }))
+              .toList());
+    } catch (e) {
+      debugPrint("Error streaming lobby_messages, trying messages stream: $e");
+      final targetKey = 'lobby_$lobbyId';
+      return _supabase
+          .from('messages')
+          .stream(primaryKey: ['id'])
+          .order('created_at', ascending: true)
+          .map((list) => list
+              .where((m) => m['receiver_id'] == targetKey || m['receiver_id'] == lobbyId)
+              .map((json) => MessageModel.fromJson(json))
+              .toList());
+    }
+  }
+
   /// Fetch conversations inbox list (Matched Athletes + Last Message)
   Future<List<ConversationModel>> fetchConversations() async {
     if (currentUserId == null) return [];
@@ -101,3 +163,4 @@ class ChatService {
     }
   }
 }
+
