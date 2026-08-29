@@ -457,7 +457,8 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
             padding: const EdgeInsets.only(top: 8, bottom: 24),
             itemCount: lobbies.length,
             itemBuilder: (context, index) {
-              final lobby = lobbies[index];
+              final rawLobby = lobbies[index];
+              final lobby = _lobbyCache[rawLobby.id] ?? rawLobby;
               return _buildHostedCard(lobby);
             },
           );
@@ -785,7 +786,9 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => LobbyDetailsPage(lobby: lobby)),
-                    );
+                    ).then((_) {
+                      if (mounted) setState(() {});
+                    });
                   },
                   icon: const Icon(Icons.manage_accounts_rounded, size: 16),
                   label: const Text("MANAGE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
