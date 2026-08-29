@@ -725,7 +725,7 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
                               },
                             )
                           : const Text(
-                              "Referee Slot: Available (Official Arbiter Requested)",
+                              "Referee Slot: Available",
                               style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 11),
                             ),
                     ),
@@ -1190,7 +1190,7 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
                               },
                             )
                           : const Text(
-                              "Referee Slot: Available (Official Arbiter Requested)",
+                              "Referee Slot: Available",
                               style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 11),
                             ),
                     ),

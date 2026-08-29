@@ -314,10 +314,10 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                 const SizedBox(height: 12),
 
                 // 0. Referee Slot (If Requested by Host)
-                if (_lobby.hasReferee || approvedParticipants.any((p) => p.role == 'referee')) ...[
+                if (_lobby.hasReferee || allRequests.any((p) => p.role == 'referee')) ...[
                   _buildRefereeSlotCard(
                     lobbyId: lobbyId,
-                    approvedParticipants: approvedParticipants,
+                    allRequests: allRequests,
                     isHost: isHost,
                   ),
                   const SizedBox(height: 6),
@@ -550,18 +550,20 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
   /// Dedicated Referee Card in Roster
   Widget _buildRefereeSlotCard({
     required String lobbyId,
-    required List<LobbyParticipantModel> approvedParticipants,
+    required List<LobbyParticipantModel> allRequests,
     required bool isHost,
   }) {
     final currentUserId = _lobbyService.currentUserId;
-    final refereeParticipant = approvedParticipants.where((p) => p.role == 'referee').firstOrNull;
+    final approvedReferee = allRequests.where((p) => p.role == 'referee' && p.status == 'approved').firstOrNull;
+    final pendingReferee = allRequests.where((p) => p.role == 'referee' && p.status == 'pending').firstOrNull;
+    final isMePendingRef = pendingReferee?.userId == currentUserId;
 
-    if (refereeParticipant != null) {
-      final isMeRef = refereeParticipant.userId == currentUserId;
+    if (approvedReferee != null) {
+      final isMeRef = approvedReferee.userId == currentUserId;
       return FutureBuilder<ProfileModel?>(
-        future: _getOrFetchProfile(refereeParticipant.userId),
+        future: _getOrFetchProfile(approvedReferee.userId),
         builder: (context, snap) {
-          final p = snap.data ?? refereeParticipant.userProfile;
+          final p = snap.data ?? approvedReferee.userProfile;
           final name = p?.name ?? (isMeRef ? "You" : "Match Referee");
 
           return Container(
@@ -602,12 +604,12 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                               color: const Color(0xFFFFD700).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Text("REFEREE 🟡", style: TextStyle(color: Color(0xFFFFD700), fontSize: 9, fontWeight: FontWeight.w900)),
+                            child: const Text("OFFICIAL REFEREE 🟡", style: TextStyle(color: Color(0xFFFFD700), fontSize: 9, fontWeight: FontWeight.w900)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 2),
-                      const Text("Official Match Arbitrator • Certified", style: TextStyle(color: Colors.white60, fontSize: 11)),
+                      const Text("Official Match Referee", style: TextStyle(color: Colors.white60, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -634,7 +636,7 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                       );
 
                       if (confirm == true) {
-                        await _lobbyService.removeRefereeSlot(lobbyId, refereeParticipant.userId);
+                        await _lobbyService.removeRefereeSlot(lobbyId, approvedReferee.userId);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Referee removed from match."), backgroundColor: Color(0xFF1E1E1E)),
@@ -647,6 +649,68 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
             ),
           );
         },
+      );
+    }
+
+    // Pending Referee application by current user
+    if (isMePendingRef) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C190D),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.amber.withValues(alpha: 0.4), width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.amber.withValues(alpha: 0.15),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+              ),
+              child: const Center(
+                child: Icon(Icons.sports_rounded, color: Colors.amber, size: 20),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Referee Application Submitted",
+                    style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  Text(
+                    "Awaiting host approval to referee this match",
+                    style: TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                await _lobbyService.leaveLobby(lobbyId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Referee application withdrawn."), backgroundColor: Color(0xFF1E1E1E)),
+                  );
+                }
+              },
+              child: const Text("WITHDRAW", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10)),
+            ),
+          ],
+        ),
       );
     }
 
@@ -683,7 +747,7 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                   style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 Text(
-                  isHost ? "You requested an official referee for this match" : "Host requested an official referee for this match",
+                  isHost ? "You requested an official referee for this match" : "Host requested a referee • Requires host approval",
                   style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
               ],
@@ -699,12 +763,12 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
               try {
-                await _lobbyService.claimRefereeSlot(lobbyId);
+                await _lobbyService.claimRefereeSlot(lobbyId, isHost: isHost);
                 if (mounted) {
                   messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text("🟡 You have been assigned as the Match Referee!"),
-                      backgroundColor: Color(0xFF1A1A1A),
+                    SnackBar(
+                      content: Text(isHost ? "🟡 You have been assigned as the Match Referee!" : "🟡 Referee application submitted! Awaiting host approval."),
+                      backgroundColor: const Color(0xFF1A1A1A),
                     ),
                   );
                 }
@@ -716,7 +780,7 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                 }
               }
             },
-            child: Text(isHost ? "I WILL REF" : "CLAIM REF", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+            child: Text(isHost ? "I WILL REF" : "APPLY AS REF", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
           ),
         ],
       ),
@@ -1282,11 +1346,26 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                  Row(
+                                    children: [
+                                      Text(displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                      if (req.role == 'referee') ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text("REFEREE APPLICANT 🟡", style: TextStyle(color: Color(0xFFFFD700), fontSize: 9, fontWeight: FontWeight.w900)),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    profile?.skill != null ? "Skill: ${profile!.skill}" : "Tap row to review",
-                                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                    req.role == 'referee' ? "Applied to referee this match" : (profile?.skill != null ? "Skill: ${profile!.skill}" : "Tap row to review"),
+                                    style: TextStyle(color: req.role == 'referee' ? const Color(0xFFFFD700) : Colors.white38, fontSize: 11),
                                   ),
                                 ],
                               ),

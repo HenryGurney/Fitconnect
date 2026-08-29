@@ -114,21 +114,24 @@ class LobbyService {
     }
   }
 
-  /// 3b. Claim the dedicated match referee slot
-  Future<void> claimRefereeSlot(String lobbyId) async {
+  /// 3b. Apply or claim the dedicated match referee slot (requires host approval if not host)
+  Future<void> claimRefereeSlot(String lobbyId, {bool isHost = false}) async {
     if (currentUserId == null) throw Exception("User not logged in.");
+    final dynamic targetLobbyId = int.tryParse(lobbyId) ?? lobbyId;
+    final initialStatus = isHost ? 'approved' : 'pending';
+
     try {
       await _supabase.from('lobby_participants').insert({
-        'lobby_id': lobbyId,
+        'lobby_id': targetLobbyId,
         'user_id': currentUserId,
-        'status': 'approved',
+        'status': initialStatus,
         'role': 'referee',
       });
     } catch (e) {
       await _supabase.from('lobby_participants').insert({
-        'lobby_id': lobbyId,
+        'lobby_id': targetLobbyId,
         'user_id': currentUserId,
-        'status': 'approved',
+        'status': initialStatus,
       });
     }
   }
