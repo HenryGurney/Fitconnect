@@ -820,6 +820,55 @@ class LobbyCardWidget extends StatelessWidget {
                   ),
               ],
             ),
+
+            // Referee Info Banner
+            StreamBuilder<List<LobbyParticipantModel>>(
+              stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
+              builder: (context, snapshot) {
+                final participants = snapshot.data ?? [];
+                final ref = participants.where((p) => p.role == 'referee' && p.status == 'approved').firstOrNull;
+
+                if (!lobby.hasReferee && ref == null) return const SizedBox.shrink();
+
+                return Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sports_rounded, color: Color(0xFFFFD700), size: 14),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: ref != null
+                            ? FutureBuilder<ProfileModel?>(
+                                future: _lobbyService.fetchPlayerProfile(ref.userId),
+                                builder: (context, rSnap) {
+                                  final rProfile = rSnap.data;
+                                  return Text(
+                                    "Official Referee: ${rProfile?.name ?? 'Assigned'} 🟡",
+                                    style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 11),
+                                  );
+                                },
+                              )
+                            : const Text(
+                                "Referee Slot: Available • Tap to Claim",
+                                style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 11),
+                              ),
+                      ),
+                      if (ref == null)
+                        const Text(
+                          "CLAIM",
+                          style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.w900, fontSize: 10),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
