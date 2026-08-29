@@ -191,87 +191,139 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
     final titleCtrl = TextEditingController(text: lobby.cleanTitle);
     final locationCtrl = TextEditingController(text: lobby.locationName);
     final maxPlayersCtrl = TextEditingController(text: lobby.maxParticipants.toString());
+    bool editNeedReferee = lobby.hasReferee;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF141414),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          left: 20,
-          right: 20,
-          top: 18,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "EDIT MATCH DETAILS",
-              style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1),
-            ),
-            const SizedBox(height: 16),
-            _buildInputField("Match Title", titleCtrl, Icons.sports_rounded),
-            const SizedBox(height: 10),
-            _buildInputField("Venue / Location", locationCtrl, Icons.location_on_outlined),
-            const SizedBox(height: 10),
-            _buildInputField("Max Players", maxPlayersCtrl, Icons.groups_rounded, keyboardType: TextInputType.number),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF39FF14),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (context) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
                 ),
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final navigator = Navigator.of(context);
-
-                  try {
-                    await _lobbyService.updateLobby(
-                      lobbyId: lobby.id,
-                      title: titleCtrl.text.trim(),
-                      locationName: locationCtrl.text.trim(),
-                      maxParticipants: int.tryParse(maxPlayersCtrl.text.trim()) ?? 10,
-                    );
-
-                    if (mounted) {
-                      navigator.pop();
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: const Text("Match updated successfully!"),
-                          backgroundColor: const Color(0xFF1E1E1E),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      );
-                      setState(() {});
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text("Error updating match: $e"), backgroundColor: Colors.redAccent),
-                      );
-                    }
-                  }
-                },
-                child: const Text("SAVE CHANGES", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              const Text(
+                "EDIT MATCH DETAILS",
+                style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1),
+              ),
+              const SizedBox(height: 16),
+              _buildInputField("Match Title", titleCtrl, Icons.sports_rounded),
+              const SizedBox(height: 10),
+              _buildInputField("Venue / Location", locationCtrl, Icons.location_on_outlined),
+              const SizedBox(height: 10),
+              _buildInputField("Max Players", maxPlayersCtrl, Icons.groups_rounded, keyboardType: TextInputType.number),
+              const SizedBox(height: 10),
+
+              // Referee Toggle Switch Card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: editNeedReferee ? const Color(0xFFFFD700).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: editNeedReferee ? const Color(0xFFFFD700).withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.sports_rounded,
+                        color: editNeedReferee ? const Color(0xFFFFD700) : Colors.white54,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Need a Referee?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text("Reserve an official referee slot for this game", style: TextStyle(color: Colors.white38, fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: editNeedReferee,
+                      activeThumbColor: const Color(0xFFFFD700),
+                      activeTrackColor: const Color(0xFFFFD700).withValues(alpha: 0.3),
+                      inactiveThumbColor: Colors.white38,
+                      inactiveTrackColor: Colors.white10,
+                      onChanged: (val) => setModalState(() => editNeedReferee = val),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF39FF14),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
+
+                    try {
+                      await _lobbyService.updateLobby(
+                        lobbyId: lobby.id,
+                        title: titleCtrl.text.trim(),
+                        locationName: locationCtrl.text.trim(),
+                        maxParticipants: int.tryParse(maxPlayersCtrl.text.trim()) ?? 10,
+                        hasReferee: editNeedReferee,
+                      );
+
+                      if (mounted) {
+                        navigator.pop();
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: const Text("Match updated successfully!"),
+                            backgroundColor: const Color(0xFF1E1E1E),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                        setState(() {});
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text("Error updating match: $e"), backgroundColor: Colors.redAccent),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text("SAVE CHANGES", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

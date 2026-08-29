@@ -79,6 +79,12 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          if (isHost)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Color(0xFF39FF14)),
+              tooltip: "Edit Match Details",
+              onPressed: () => _showEditMatchSheet(),
+            ),
           IconButton(
             icon: const Icon(Icons.military_tech_rounded, color: Color(0xFFFFD700)),
             tooltip: "Vote Match MVP & Reliability",
@@ -904,6 +910,173 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
           ),
         );
       },
+    );
+  }
+
+  void _showEditMatchSheet() {
+    final titleCtrl = TextEditingController(text: _lobby.cleanTitle);
+    final locationCtrl = TextEditingController(text: _lobby.locationName);
+    final maxPlayersCtrl = TextEditingController(text: _lobby.maxParticipants.toString());
+    bool editNeedReferee = _lobby.hasReferee;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "EDIT MATCH DETAILS",
+                style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1),
+              ),
+              const SizedBox(height: 16),
+              _buildEditTextField("Match Title", titleCtrl, Icons.sports_rounded),
+              const SizedBox(height: 10),
+              _buildEditTextField("Venue / Location", locationCtrl, Icons.location_on_outlined),
+              const SizedBox(height: 10),
+              _buildEditTextField("Max Players", maxPlayersCtrl, Icons.groups_rounded, keyboardType: TextInputType.number),
+              const SizedBox(height: 10),
+
+              // Referee Toggle Switch Card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: editNeedReferee ? const Color(0xFFFFD700).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: editNeedReferee ? const Color(0xFFFFD700).withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.sports_rounded,
+                        color: editNeedReferee ? const Color(0xFFFFD700) : Colors.white54,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Need a Referee?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text("Reserve an official referee slot for this game", style: TextStyle(color: Colors.white38, fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: editNeedReferee,
+                      activeThumbColor: const Color(0xFFFFD700),
+                      activeTrackColor: const Color(0xFFFFD700).withValues(alpha: 0.3),
+                      inactiveThumbColor: Colors.white38,
+                      inactiveTrackColor: Colors.white10,
+                      onChanged: (val) => setModalState(() => editNeedReferee = val),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF39FF14),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
+
+                    try {
+                      await _lobbyService.updateLobby(
+                        lobbyId: _lobby.id,
+                        title: titleCtrl.text.trim(),
+                        locationName: locationCtrl.text.trim(),
+                        maxParticipants: int.tryParse(maxPlayersCtrl.text.trim()) ?? 10,
+                        hasReferee: editNeedReferee,
+                      );
+
+                      final refreshedLobby = await _lobbyService.fetchLobbyById(_lobby.id);
+
+                      if (mounted) {
+                        navigator.pop();
+                        if (refreshedLobby != null) {
+                          setState(() => _lobby = refreshedLobby);
+                        }
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text("Match updated successfully!"),
+                            backgroundColor: Color(0xFF1E1E1E),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text("Error updating match: $e"), backgroundColor: Colors.redAccent),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text("SAVE CHANGES", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditTextField(String label, TextEditingController controller, IconData icon, {TextInputType? keyboardType}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+          prefixIcon: Icon(icon, color: const Color(0xFF39FF14), size: 18),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        ),
+      ),
     );
   }
 

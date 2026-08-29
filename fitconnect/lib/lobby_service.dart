@@ -290,12 +290,27 @@ class LobbyService {
     required String title,
     required String locationName,
     required int maxParticipants,
+    bool? hasReferee,
   }) async {
-    await _supabase.from('lobbies').update({
+    final Map<String, dynamic> updateData = {
       'title': title,
       'location_name': locationName,
       'max_participants': maxParticipants,
-    }).eq('id', lobbyId);
+    };
+    if (hasReferee != null) {
+      updateData['has_referee'] = hasReferee;
+    }
+
+    try {
+      await _supabase.from('lobbies').update(updateData).eq('id', lobbyId);
+    } catch (e) {
+      // Fallback if has_referee column is not yet present
+      updateData.remove('has_referee');
+      if (hasReferee == true && !title.contains('[Referee]')) {
+        updateData['title'] = "$title • [Referee]";
+      }
+      await _supabase.from('lobbies').update(updateData).eq('id', lobbyId);
+    }
   }
 
   /// 15. Host can remove or unassign a referee from the match
