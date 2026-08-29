@@ -269,6 +269,39 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedScope = _selectedScope == 'MINE' ? 'ALL' : 'MINE';
+                    });
+                  },
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: _selectedScope == 'MINE' ? const Color(0xFF1E2818) : const Color(0xFF141414),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedScope == 'MINE' ? const Color(0xFF39FF14) : Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.stars_rounded, color: _selectedScope == 'MINE' ? const Color(0xFF39FF14) : Colors.white38, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Mine",
+                          style: TextStyle(
+                            color: _selectedScope == 'MINE' ? const Color(0xFF39FF14) : Colors.white60,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                GestureDetector(
                   onTap: _showFilterSheet,
                   child: Container(
                     height: 44,
@@ -511,13 +544,13 @@ class LobbyCardWidget extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: const Color(0xFF121212),
+          color: isMyLobby ? const Color(0xFF0D170C) : const Color(0xFF121212),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isMyLobby
-                ? const Color(0xFF39FF14).withValues(alpha: 0.35)
+                ? const Color(0xFF39FF14).withValues(alpha: 0.6)
                 : (isHostPro ? const Color(0xFFFFD700).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.06)),
-            width: isMyLobby || isHostPro ? 1.2 : 1.0,
+            width: isMyLobby ? 1.5 : (isHostPro ? 1.2 : 1.0),
           ),
         ),
         child: Column(
@@ -545,14 +578,22 @@ class LobbyCardWidget extends StatelessWidget {
                 if (isMyLobby) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF39FF14).withValues(alpha: 0.15),
+                      color: const Color(0xFF39FF14).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.5), width: 1),
                     ),
-                    child: const Text(
-                      "YOUR MATCH",
-                      style: TextStyle(color: Color(0xFF39FF14), fontSize: 9, fontWeight: FontWeight.w900),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.stars_rounded, color: Color(0xFF39FF14), size: 11),
+                        SizedBox(width: 3),
+                        Text(
+                          "HOSTED BY YOU",
+                          style: TextStyle(color: Color(0xFF39FF14), fontSize: 9, fontWeight: FontWeight.w900),
+                        ),
+                      ],
                     ),
                   ),
                 ] else if (isHostPro) ...[
@@ -667,7 +708,7 @@ class LobbyCardWidget extends StatelessWidget {
                       const SizedBox(width: 7),
                       Flexible(
                         child: Text(
-                          isMyLobby ? "Hosted by You" : "Hosted by $hostName",
+                          isMyLobby ? "Hosted by You (Organizer)" : "Hosted by $hostName",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -679,15 +720,16 @@ class LobbyCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 5),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
                           color: isMyLobby
-                              ? const Color(0xFF39FF14).withValues(alpha: 0.15)
+                              ? const Color(0xFF39FF14).withValues(alpha: 0.2)
                               : const Color(0xFFFFD700).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
+                          border: isMyLobby ? Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.4)) : null,
                         ),
                         child: Text(
-                          isMyLobby ? "YOU" : "HOST",
+                          isMyLobby ? "YOU • HOST" : "HOST",
                           style: TextStyle(
                             color: isMyLobby ? const Color(0xFF39FF14) : const Color(0xFFFFD700),
                             fontSize: 8,
