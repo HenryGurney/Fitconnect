@@ -309,6 +309,7 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         );
+                        _lobbyCache.clear();
                         setState(() {});
                       }
                     } catch (e) {

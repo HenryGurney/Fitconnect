@@ -292,8 +292,15 @@ class LobbyService {
     required int maxParticipants,
     bool? hasReferee,
   }) async {
+    final dynamic targetId = int.tryParse(lobbyId) ?? lobbyId;
+
+    var updatedTitle = title.replaceAll('• [Referee]', '').replaceAll('[Referee]', '').trim();
+    if (hasReferee == true) {
+      updatedTitle = "$updatedTitle • [Referee]";
+    }
+
     final Map<String, dynamic> updateData = {
-      'title': title,
+      'title': updatedTitle,
       'location_name': locationName,
       'max_participants': maxParticipants,
     };
@@ -302,14 +309,11 @@ class LobbyService {
     }
 
     try {
-      await _supabase.from('lobbies').update(updateData).eq('id', lobbyId);
+      await _supabase.from('lobbies').update(updateData).eq('id', targetId);
     } catch (e) {
-      // Fallback if has_referee column is not yet present
+      // Fallback if has_referee column is not yet present in Supabase
       updateData.remove('has_referee');
-      if (hasReferee == true && !title.contains('[Referee]')) {
-        updateData['title'] = "$title • [Referee]";
-      }
-      await _supabase.from('lobbies').update(updateData).eq('id', lobbyId);
+      await _supabase.from('lobbies').update(updateData).eq('id', targetId);
     }
   }
 
