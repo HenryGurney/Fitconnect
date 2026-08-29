@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'lobby_details_page.dart';
 import 'create_lobby_page.dart';
 import 'lobby_service.dart';
@@ -18,7 +19,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   String _selectedSport = 'ALL';
   String _selectedScope = 'ALL'; // 'ALL', 'MINE', 'OPEN'
+  String _selectedRadius = 'ALL'; // 'ALL', '10KM', '25KM', '50KM'
   String _searchQuery = '';
+  Position? _userPosition;
 
   static const Map<String, String> _sportIcons = {
     'ALL': '🔥',
@@ -47,6 +50,38 @@ class _LobbyScreenState extends State<LobbyScreen> {
   Stream<List<LobbyModel>> get _lobbiesStream => _lobbyService.getLobbiesStream();
 
   @override
+  void initState() {
+    super.initState();
+    _fetchUserPosition();
+  }
+
+  Future<void> _fetchUserPosition() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low, timeLimit: Duration(seconds: 4)),
+      );
+      if (mounted) {
+        setState(() => _userPosition = pos);
+      }
+    } catch (e) {
+      debugPrint("Info: could not fetch GPS position for lobby radius filter: $e");
+    }
+  }
+
+  double? _calculateDistanceKm(double lat, double lng) {
+    if (_userPosition == null || lat == 0 || lng == 0) return null;
+    final meters = Geolocator.distanceBetween(_userPosition!.latitude, _userPosition!.longitude, lat, lng);
+    return meters / 1000.0;
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -54,6 +89,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   Future<void> _handleRefresh() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    _fetchUserPosition();
     if (mounted) setState(() {});
   }
 
@@ -148,6 +184,24 @@ class _LobbyScreenState extends State<LobbyScreen> {
             ),
           ),
 
+          // 2.5 Distance Radius Filter Chips
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _buildRadiusChip("🌐 ALL DISTANCE", 'ALL'),
+                const SizedBox(width: 6),
+                _buildRadiusChip("📍 < 10 KM", '10KM'),
+                const SizedBox(width: 6),
+                _buildRadiusChip("📍 < 25 KM", '25KM'),
+                const SizedBox(width: 6),
+                _buildRadiusChip("📍 < 50 KM", '50KM'),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 4),
 
           // 3. Sport Category Filter Bar
@@ -229,6 +283,16 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       return false;
                     }
 
+                    // Distance Radius filter
+                    if (_selectedRadius != 'ALL') {
+                      final distKm = _calculateDistanceKm(lobby.latitude, lobby.longitude);
+                      if (distKm != null) {
+                        if (_selectedRadius == '10KM' && distKm > 10.0) return false;
+                        if (_selectedRadius == '25KM' && distKm > 25.0) return false;
+                        if (_selectedRadius == '50KM' && distKm > 50.0) return false;
+                      }
+                    }
+
                     // Text Search filter
                     if (_searchQuery.isNotEmpty) {
                       final titleMatch = lobby.title.toLowerCase().contains(_searchQuery);
@@ -275,7 +339,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                                   Text(
                                     _selectedScope == 'MINE'
                                         ? "You haven't hosted any matches yet.\nTap below to launch one!"
-                                        : "No active matches match your current filters.\nTry resetting filters or host your own match!",
+                                        : "No active matches match your current filters.\nTry adjusting radius, sports or host your own match!",
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(color: Colors.white38, fontSize: 13, height: 1.4),
                                   ),
@@ -325,7 +389,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     itemCount: sortedLobbies.length,
                     itemBuilder: (context, index) {
                       final lobby = sortedLobbies[index];
-                      return LobbyCardWidget(lobby: lobby);
+                      final distKm = _calculateDistanceKm(lobby.latitude, lobby.longitude);
+                      return LobbyCardWidget(lobby: lobby, distanceKm: distKm);
                     },
                   );
                 },
@@ -346,6 +411,33 @@ class _LobbyScreenState extends State<LobbyScreen> {
         },
         icon: const Icon(Icons.add, size: 22),
         label: const Text("HOST MATCH", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+      ),
+    );
+  }
+
+  Widget _buildRadiusChip(String label, String value) {
+    final isSelected = _selectedRadius == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRadius = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF00E5FF).withValues(alpha: 0.18) : const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF00E5FF) : Colors.white.withValues(alpha: 0.08),
+            width: isSelected ? 1.2 : 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFF00E5FF) : Colors.white60,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.4,
+          ),
+        ),
       ),
     );
   }
@@ -404,9 +496,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
 class LobbyCardWidget extends StatelessWidget {
   final LobbyModel lobby;
+  final double? distanceKm;
   final LobbyService _lobbyService = LobbyService();
 
-  LobbyCardWidget({super.key, required this.lobby});
+  LobbyCardWidget({super.key, required this.lobby, this.distanceKm});
 
   @override
   Widget build(BuildContext context) {
@@ -752,9 +845,9 @@ class LobbyCardWidget extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // 4. Venue Location
+            // 4. Venue Location & Distance Tag
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Icon(Icons.location_on_outlined, color: Colors.white38, size: 15),
                 const SizedBox(width: 5),
@@ -766,6 +859,32 @@ class LobbyCardWidget extends StatelessWidget {
                     style: const TextStyle(color: Colors.white60, fontSize: 13),
                   ),
                 ),
+                if (distanceKm != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.near_me_rounded, color: Color(0xFF00E5FF), size: 11),
+                        const SizedBox(width: 3),
+                        Text(
+                          "${distanceKm!.toStringAsFixed(1)} km",
+                          style: const TextStyle(
+                            color: Color(0xFF00E5FF),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),

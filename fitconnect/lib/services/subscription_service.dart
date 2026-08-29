@@ -139,10 +139,12 @@ class SubscriptionService {
 
     try {
       final customerInfo = await Purchases.getCustomerInfo();
-      final isPro = customerInfo.entitlements.all[entitlementPro]?.isActive == true ||
-                    customerInfo.entitlements.active.isNotEmpty;
+      final proEntitlement = customerInfo.entitlements.all[entitlementPro];
+      final bool isPro = proEntitlement != null && proEntitlement.isActive == true;
 
-      await _profileService.updateTier(isPro ? 'premium' : 'free');
+      if (isPro) {
+        await _profileService.updateTier('premium');
+      }
       return isPro;
     } catch (e) {
       debugPrint("[SubscriptionService] Check entitlements error: $e");
@@ -151,8 +153,10 @@ class SubscriptionService {
   }
 
   Future<void> _syncEntitlementWithSupabase(CustomerInfo customerInfo) async {
-    final isPro = customerInfo.entitlements.all[entitlementPro]?.isActive == true ||
-                  customerInfo.entitlements.active.isNotEmpty;
-    await _profileService.updateTier(isPro ? 'premium' : 'free');
+    final proEntitlement = customerInfo.entitlements.all[entitlementPro];
+    final bool isPro = proEntitlement != null && proEntitlement.isActive == true;
+    if (isPro) {
+      await _profileService.updateTier('premium');
+    }
   }
 }

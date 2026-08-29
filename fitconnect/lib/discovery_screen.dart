@@ -92,6 +92,72 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         .toList();
   }
 
+  Future<void> _handleResetSwipes() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF141414),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.restart_alt_rounded, color: Color(0xFF39FF14), size: 22),
+            SizedBox(width: 10),
+            Text(
+              "Reset Discovery Swipes",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          "This will reset your previous passes and allow you to discover and match with all athletes in your area again.",
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF39FF14),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("RESET SWIPES", style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await _matchService.resetAllSwipes();
+        await _loadDiscoveryData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("✨ Swipes reset! All nearby athletes re-populated."),
+              backgroundColor: Color(0xFF1E2F1E),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error resetting swipes: $e"), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _handleLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -806,20 +872,34 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                 style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
                               ),
                               const SizedBox(height: 24),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                alignment: WrapAlignment.center,
                                 children: [
                                   ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF39FF14),
                                       foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    onPressed: _handleResetSwipes,
+                                    icon: const Icon(Icons.restart_alt_rounded, size: 20),
+                                    label: const Text("RESET SWIPES & START OVER", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                                  ),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white70,
+                                      side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                     ),
                                     onPressed: () {
                                       setState(() => _selectedSportFilter = 'ALL');
                                     },
                                     icon: const Icon(Icons.refresh, size: 18),
-                                    label: const Text("RESET FILTER", style: TextStyle(fontWeight: FontWeight.bold)),
+                                    label: const Text("RESET FILTER", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                   ),
                                 ],
                               ),

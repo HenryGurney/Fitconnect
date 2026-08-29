@@ -9,7 +9,7 @@ class ChatService {
 
   String? get currentUserId => _supabase.auth.currentUser?.id;
 
-  /// Send a chat message to a specific user (Requires mutual match)
+  /// Send a chat message to a specific user (Requires mutual match OR shared match lobby)
   Future<void> sendMessage({
     required String receiverId,
     required String content,
@@ -18,18 +18,98 @@ class ChatService {
 
     try {
       // 1. Verify mutual match exists between current user and target user
-      final matchCheck = await _supabase
-          .from('swipes')
-          .select('id')
-          .eq('user_id', currentUserId!)
-          .eq('target_user_id', receiverId)
-          .eq('is_match', true);
+      bool isAllowed = false;
+      try {
+        final matchCheck = await _supabase
+            .from('swipes')
+            .select('id')
+            .eq('user_id', currentUserId!)
+            .eq('target_user_id', receiverId)
+            .eq('is_match', true);
 
-      if (matchCheck.isEmpty) {
-        throw Exception("You can only message athletes you have mutually matched with!");
+        if (matchCheck.isNotEmpty) {
+          isAllowed = true;
+        }
+      } catch (_) {}
+
+      // 2. If no swipe match yet, check if users share a match lobby (as host or approved participant)
+      if (!isAllowed) {
+        try {
+          // Check A: Current user is host of a lobby where receiver is an approved participant
+          final hostMatch = await _supabase
+              .from('lobby_participants')
+              .select('id, lobbies!inner(host_id)')
+              .eq('user_id', receiverId)
+              .eq('status', 'approved')
+              .eq('lobbies.host_id', currentUserId!);
+
+          if (hostMatch.isNotEmpty) {
+            isAllowed = true;
+          }
+        } catch (_) {}
       }
 
-      // 2. Insert message
+      if (!isAllowed) {
+        try {
+          // Check B: Receiver is host of a lobby where current user is an approved participant
+          final participantMatch = await _supabase
+              .from('lobby_participants')
+              .select('id, lobbies!inner(host_id)')
+              .eq('user_id', currentUserId!)
+              .eq('status', 'approved')
+              .eq('lobbies.host_id', receiverId);
+
+          if (participantMatch.isNotEmpty) {
+            isAllowed = true;
+          }
+        } catch (_) {}
+      }
+
+      if (!isAllowed) {
+        try {
+          // Check C: Both users are approved participants in the same lobby
+          final myLobbies = await _supabase
+              .from('lobby_participants')
+              .select('lobby_id')
+              .eq('user_id', currentUserId!)
+              .eq('status', 'approved');
+
+          if (myLobbies.isNotEmpty) {
+            final lobbyIds = myLobbies.map((e) => e['lobby_id'].toString()).toList();
+            final peerLobbies = await _supabase
+                .from('lobby_participants')
+                .select('id')
+                .eq('user_id', receiverId)
+                .eq('status', 'approved')
+                .inFilter('lobby_id', lobbyIds);
+
+            if (peerLobbies.isNotEmpty) {
+              isAllowed = true;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Auto-link mutual connection in swipes so messaging flows smoothly
+      try {
+        await _supabase.from('swipes').upsert({
+          'user_id': currentUserId!,
+          'target_user_id': receiverId,
+          'action': 'like',
+          'is_match': true,
+          'created_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'user_id, target_user_id');
+
+        await _supabase.from('swipes').upsert({
+          'user_id': receiverId,
+          'target_user_id': currentUserId!,
+          'action': 'like',
+          'is_match': true,
+          'created_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'user_id, target_user_id');
+      } catch (_) {}
+
+      // 3. Insert message
       await _supabase.from('messages').insert({
         'sender_id': currentUserId,
         'receiver_id': receiverId,

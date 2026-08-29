@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'splash_screen.dart'; // 1. IMPORT YOUR SPLASH SCREEN
+import 'splash_screen.dart';
 import 'services/subscription_service.dart';
+import 'services/notification_service.dart';
+
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +16,7 @@ Future<void> main() async {
 
   final currentUser = Supabase.instance.client.auth.currentUser;
   await SubscriptionService().init(userId: currentUser?.id);
+  NotificationService().init(messengerKey: rootScaffoldMessengerKey);
 
   runApp(const FitConnectApp());
 }
@@ -25,6 +29,7 @@ class FitConnectApp extends StatelessWidget {
     return MaterialApp(
       title: 'FitConnect',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
@@ -34,7 +39,6 @@ class FitConnectApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      // 2. CHANGE THIS FROM LoginScreen TO SplashScreen
       home: const SplashScreen(), 
     );
   }

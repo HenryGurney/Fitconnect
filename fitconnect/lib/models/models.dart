@@ -10,13 +10,8 @@ class ProfileModel {
   final String? imageUrl;
   final String tier;
   final int reliabilityScore;
+  final bool isAdmin;
   final DateTime? updatedAt;
-
-  bool get isAdmin {
-    final nameLower = name.toLowerCase();
-    final tierLower = tier.toLowerCase();
-    return tierLower == 'admin' || nameLower == 'admin' || nameLower.startsWith('admin');
-  }
 
   bool get isPremium {
     final tierLower = tier.toLowerCase();
@@ -32,10 +27,14 @@ class ProfileModel {
     this.imageUrl,
     this.tier = 'free',
     this.reliabilityScore = 100,
+    this.isAdmin = false,
     this.updatedAt,
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
+    final tierStr = json['tier']?.toString().toLowerCase() ?? 'free';
+    final bool adminFlag = json['is_admin'] == true || tierStr == 'admin';
+
     return ProfileModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Athlete',
@@ -49,10 +48,11 @@ class ProfileModel {
           json['photo_url']?.toString() ??
           json['photoUrl']?.toString() ??
           json['profile_image']?.toString(),
-      tier: json['tier']?.toString() ?? 'free',
+      tier: tierStr,
       reliabilityScore: json['reliability_score'] is int
           ? json['reliability_score'] as int
           : int.tryParse(json['reliability_score']?.toString() ?? '100') ?? 100,
+      isAdmin: adminFlag,
       updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'].toString())
           : null,

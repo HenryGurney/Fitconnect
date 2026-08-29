@@ -132,4 +132,19 @@ class MatchService {
       return [];
     }
   }
+
+  /// Reset and purge all swipe history for current user so they can discover all athletes again
+  Future<void> resetAllSwipes() async {
+    if (currentUserId == null) return;
+    try {
+      await _supabase
+          .from('swipes')
+          .delete()
+          .eq('user_id', currentUserId!);
+      debugPrint("Successfully reset all swipes for user: $currentUserId");
+    } catch (e) {
+      debugPrint("Error resetting all swipes: $e");
+      rethrow;
+    }
+  }
 }
