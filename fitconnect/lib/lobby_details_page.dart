@@ -28,7 +28,7 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
   final Map<String, ProfileModel?> _profileCache = {};
   bool _isProcessing = false;
 
-  late final LobbyModel _lobby;
+  late LobbyModel _lobby;
 
   @override
   void initState() {
@@ -49,6 +49,15 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
         maxParticipants: 10,
         hostId: '',
       );
+    }
+    _refreshLobbyDetails();
+  }
+
+  Future<void> _refreshLobbyDetails() async {
+    if (_lobby.id.isEmpty) return;
+    final fresh = await _lobbyService.fetchLobbyById(_lobby.id);
+    if (fresh != null && mounted) {
+      setState(() => _lobby = fresh);
     }
   }
 
@@ -305,7 +314,7 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                 const SizedBox(height: 12),
 
                 // 0. Referee Slot (If Requested by Host)
-                if (_lobby.hasReferee) ...[
+                if (_lobby.hasReferee || approvedParticipants.any((p) => p.role == 'referee')) ...[
                   _buildRefereeSlotCard(
                     lobbyId: lobbyId,
                     approvedParticipants: approvedParticipants,
