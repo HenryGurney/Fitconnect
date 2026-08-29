@@ -285,7 +285,7 @@ class LobbyService {
   }
 
   /// 14. Update existing lobby details
-  Future<void> updateLobby({
+  Future<LobbyModel?> updateLobby({
     required String lobbyId,
     required String title,
     required String locationName,
@@ -308,13 +308,27 @@ class LobbyService {
       updateData['has_referee'] = hasReferee;
     }
 
+    dynamic responseData;
     try {
-      await _supabase.from('lobbies').update(updateData).eq('id', targetId);
+      final res = await _supabase.from('lobbies').update(updateData).eq('id', targetId).select();
+      if (res.isNotEmpty) {
+        responseData = res.first;
+      }
     } catch (e) {
       // Fallback if has_referee column is not yet present in Supabase
       updateData.remove('has_referee');
-      await _supabase.from('lobbies').update(updateData).eq('id', targetId);
+      try {
+        final res = await _supabase.from('lobbies').update(updateData).eq('id', targetId).select();
+        if (res.isNotEmpty) responseData = res.first;
+      } catch (_) {
+        await _supabase.from('lobbies').update(updateData).eq('id', lobbyId);
+      }
     }
+
+    if (responseData != null) {
+      return LobbyModel.fromJson(responseData as Map<String, dynamic>);
+    }
+    return null;
   }
 
   /// 15. Host can remove or unassign a referee from the match

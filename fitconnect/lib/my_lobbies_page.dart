@@ -291,7 +291,7 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
                     final navigator = Navigator.of(context);
 
                     try {
-                      await _lobbyService.updateLobby(
+                      final updated = await _lobbyService.updateLobby(
                         lobbyId: lobby.id,
                         title: titleCtrl.text.trim(),
                         locationName: locationCtrl.text.trim(),
@@ -301,15 +301,18 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
 
                       if (mounted) {
                         navigator.pop();
+                        if (updated != null) {
+                          _lobbyCache[lobby.id] = updated;
+                        } else {
+                          _lobbyCache.clear();
+                        }
                         messenger.showSnackBar(
-                          SnackBar(
-                            content: const Text("Match updated successfully!"),
-                            backgroundColor: const Color(0xFF1E1E1E),
+                          const SnackBar(
+                            content: Text("Match updated successfully!"),
+                            backgroundColor: Color(0xFF1E1E1E),
                             behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         );
-                        _lobbyCache.clear();
                         setState(() {});
                       }
                     } catch (e) {
