@@ -147,10 +147,14 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Container(
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.9),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        top: 20,
+        bottom: bottomInset + 16,
+        top: 16,
         left: 20,
         right: 20,
       ),
@@ -161,9 +165,15 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
           top: BorderSide(color: Color(0xFF39FF14), width: 1.5),
         ),
       ),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _buildCurrentStepWidget(),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _buildCurrentStepWidget(),
+          ),
+        ),
       ),
     );
   }
@@ -186,6 +196,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
   /// Step 0: Method Selection & Order Summary
   Widget _buildSelectBankStep() {
     return Column(
+      key: const ValueKey(0),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -196,7 +207,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
             decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         Row(
           children: [
             Container(
@@ -225,11 +236,11 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
         // Order Summary Box
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: const Color(0xFF181818),
             borderRadius: BorderRadius.circular(16),
@@ -240,10 +251,17 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(widget.itemName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  Flexible(
+                    child: Text(
+                      widget.itemName,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     "RM ${widget.amount.toStringAsFixed(2)}",
-                    style: const TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 18),
+                    style: const TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 17),
                   ),
                 ],
               ),
@@ -251,86 +269,84 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(widget.itemDescription, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                  const Text("SST / Fee: RM 0.00", style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  Flexible(
+                    child: Text(
+                      widget.itemDescription,
+                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text("SST / Fee: RM 0.00", style: TextStyle(color: Colors.white38, fontSize: 10)),
                 ],
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
         const Text(
           "SELECT PAYMENT METHOD",
           style: TextStyle(color: Colors.white60, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 0.5),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
-        // Grid of Banks & eWallets
-        Flexible(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 220),
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: _banks.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final b = _banks[index];
-                final isSelected = _selectedMethod == b['id'];
-
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedMethod = b['id']),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF1E2818) : const Color(0xFF141414),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? const Color(0xFF39FF14) : Colors.white.withValues(alpha: 0.06),
-                        width: isSelected ? 1.5 : 1.0,
+        // List of Banks & eWallets
+        ..._banks.map((b) {
+          final isSelected = _selectedMethod == b['id'];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedMethod = b['id']),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF1E2818) : const Color(0xFF141414),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? const Color(0xFF39FF14) : Colors.white.withValues(alpha: 0.06),
+                    width: isSelected ? 1.5 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Text(b['icon'], style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        b['name'],
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.white70,
+                          fontWeight: isSelected ? FontWeight.w900 : FontWeight.normal,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Text(b['icon'], style: const TextStyle(fontSize: 18)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            b['name'],
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.normal,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            b['category'],
-                            style: const TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        b['category'],
+                        style: const TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
-                );
-              },
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 20),
+          );
+        }),
+        const SizedBox(height: 12),
 
         // Action Button
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF39FF14),
             foregroundColor: Colors.black,
-            minimumSize: const Size(double.infinity, 50),
+            minimumSize: const Size(double.infinity, 48),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
           onPressed: _proceedToAuth,
@@ -346,6 +362,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
   /// Step 1: Bank Simulation & TAC/OTP Authorization
   Widget _buildBankAuthStep() {
     return Column(
+      key: const ValueKey(1),
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
@@ -439,6 +456,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
   /// Step 2: Processing Spinner
   Widget _buildProcessingStep() {
     return Column(
+      key: const ValueKey(2),
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 30),
@@ -471,6 +489,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
     final dateStr = "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
     return Column(
+      key: const ValueKey(3),
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
