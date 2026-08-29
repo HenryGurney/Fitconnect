@@ -596,6 +596,38 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                     ],
                   ),
                 ),
+                if (isHost)
+                  IconButton(
+                    tooltip: "Remove / Change Referee",
+                    icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 20),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: const Color(0xFF141414),
+                          title: const Text("Remove Referee?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          content: Text("Remove $name from the official referee slot for this match?", style: const TextStyle(color: Colors.white70)),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("CANCEL", style: TextStyle(color: Colors.white54))),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text("REMOVE"),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        await _lobbyService.removeRefereeSlot(lobbyId, refereeParticipant.userId);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Referee removed from match."), backgroundColor: Color(0xFF1E1E1E)),
+                          );
+                        }
+                      }
+                    },
+                  ),
               ],
             ),
           );
@@ -627,51 +659,50 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   "Referee Slot Available",
                   style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 Text(
-                  "Host requested an official referee for this match",
-                  style: TextStyle(color: Colors.white54, fontSize: 11),
+                  isHost ? "You requested an official referee for this match" : "Host requested an official referee for this match",
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
               ],
             ),
           ),
-          if (!isHost)
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                try {
-                  await _lobbyService.claimRefereeSlot(lobbyId);
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text("🟡 You have been assigned as the Match Referee!"),
-                        backgroundColor: Color(0xFF1A1A1A),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(content: Text("Error: $e"), backgroundColor: Colors.redAccent),
-                    );
-                  }
-                }
-              },
-              child: const Text("CLAIM REF", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await _lobbyService.claimRefereeSlot(lobbyId);
+                if (mounted) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text("🟡 You have been assigned as the Match Referee!"),
+                      backgroundColor: Color(0xFF1A1A1A),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text("Error: $e"), backgroundColor: Colors.redAccent),
+                  );
+                }
+              }
+            },
+            child: Text(isHost ? "I WILL REF" : "CLAIM REF", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+          ),
         ],
       ),
     );

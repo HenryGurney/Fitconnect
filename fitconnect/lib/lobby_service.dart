@@ -297,4 +297,33 @@ class LobbyService {
       'max_participants': maxParticipants,
     }).eq('id', lobbyId);
   }
+
+  /// 15. Host can remove or unassign a referee from the match
+  Future<void> removeRefereeSlot(String lobbyId, String refereeUserId) async {
+    final dynamic targetId = int.tryParse(lobbyId) ?? lobbyId;
+    await _supabase
+        .from('lobby_participants')
+        .delete()
+        .eq('lobby_id', targetId)
+        .eq('user_id', refereeUserId);
+  }
+
+  /// 16. Host can assign a specific user as the match referee
+  Future<void> assignReferee(String lobbyId, String targetUserId) async {
+    final dynamic targetId = int.tryParse(lobbyId) ?? lobbyId;
+    try {
+      await _supabase.from('lobby_participants').insert({
+        'lobby_id': targetId,
+        'user_id': targetUserId,
+        'status': 'approved',
+        'role': 'referee',
+      });
+    } catch (_) {
+      await _supabase.from('lobby_participants').insert({
+        'lobby_id': targetId,
+        'user_id': targetUserId,
+        'status': 'approved',
+      });
+    }
+  }
 }
