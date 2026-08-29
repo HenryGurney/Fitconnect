@@ -509,7 +509,7 @@ class LobbyCardWidget extends StatelessWidget {
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: const Color(0xFF121212),
           borderRadius: BorderRadius.circular(16),
@@ -646,7 +646,62 @@ class LobbyCardWidget extends StatelessWidget {
             ),
             const SizedBox(height: 6),
 
-            // 3. Location & Distance
+            // 3. Host Profile Info
+            FutureBuilder<ProfileModel?>(
+              future: _lobbyService.fetchPlayerProfile(lobby.hostId),
+              builder: (context, hostSnap) {
+                final hostProfile = hostSnap.data ?? lobby.hostProfile;
+                final hostName = hostProfile?.name ?? (isMyLobby ? 'You' : 'Match Host');
+                final hostImg = hostProfile?.imageUrl;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      _buildAvatar(
+                        imageUrl: hostImg,
+                        name: hostName,
+                        radius: 10,
+                        borderColor: isMyLobby ? const Color(0xFF39FF14) : const Color(0xFFFFD700),
+                      ),
+                      const SizedBox(width: 7),
+                      Flexible(
+                        child: Text(
+                          isMyLobby ? "Hosted by You" : "Hosted by $hostName",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isMyLobby ? const Color(0xFF39FF14) : Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: isMyLobby
+                              ? const Color(0xFF39FF14).withValues(alpha: 0.15)
+                              : const Color(0xFFFFD700).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isMyLobby ? "YOU" : "HOST",
+                          style: TextStyle(
+                            color: isMyLobby ? const Color(0xFF39FF14) : const Color(0xFFFFD700),
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            // 4. Location & Distance
             Row(
               children: [
                 const Icon(Icons.location_on_outlined, color: Colors.white38, size: 14),
@@ -670,7 +725,7 @@ class LobbyCardWidget extends StatelessWidget {
             ),
             const SizedBox(height: 6),
 
-            // 4. Date & Fee Row
+            // 5. Date & Fee Row
             Row(
               children: [
                 if (lobby.matchDate != null || lobby.matchTime != null) ...[
@@ -701,6 +756,60 @@ class LobbyCardWidget extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar({
+    required String? imageUrl,
+    required String name,
+    required double radius,
+    required Color borderColor,
+  }) {
+    Widget imageWidget;
+
+    if (imageUrl != null && imageUrl.startsWith('http')) {
+      imageWidget = Image.network(
+        imageUrl,
+        width: radius * 2,
+        height: radius * 2,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(name, radius),
+      );
+    } else if (imageUrl != null && imageUrl.isNotEmpty) {
+      imageWidget = Image.asset(
+        imageUrl,
+        width: radius * 2,
+        height: radius * 2,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(name, radius),
+      );
+    } else {
+      imageWidget = _buildFallbackInitial(name, radius);
+    }
+
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor, width: 1.2),
+        color: borderColor.withValues(alpha: 0.12),
+      ),
+      child: ClipOval(child: imageWidget),
+    );
+  }
+
+  Widget _buildFallbackInitial(String name, double radius) {
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'H';
+    return Center(
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: const Color(0xFFFFD700),
+          fontWeight: FontWeight.w900,
+          fontSize: radius * 0.9,
         ),
       ),
     );
