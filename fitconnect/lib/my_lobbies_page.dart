@@ -4,6 +4,7 @@ import 'models/models.dart';
 import 'lobby_details_page.dart';
 import 'create_lobby_page.dart';
 import 'lobby_group_chat_screen.dart';
+import 'widgets/pro_badge_widget.dart';
 
 class MyLobbiesScreen extends StatefulWidget {
   const MyLobbiesScreen({super.key});
@@ -60,11 +61,11 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
           children: [
             Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
             SizedBox(width: 10),
-            Text("Cancel Match?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+            Text("Cancel Match?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
           ],
         ),
         content: Text(
-          "Are you sure you want to cancel and delete '$title'? All players registered in this match will be notified and removed.",
+          "Are you sure you want to cancel '$title'? All players registered in this match will be notified and removed.",
           style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
         ),
         actionsPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
@@ -112,7 +113,6 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
           SnackBar(
             content: Text("Failed to delete match: $e"),
             backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 5),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -133,7 +133,7 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
           children: [
             Icon(Icons.exit_to_app_rounded, color: Colors.redAccent, size: 22),
             SizedBox(width: 10),
-            Text("Leave Match?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+            Text("Leave Match?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
           ],
         ),
         content: Text(
@@ -195,37 +195,46 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121212),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 24,
-          right: 24,
-          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          left: 20,
+          right: 20,
+          top: 18,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Container(width: 40, height: 4, decoration: const BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.all(Radius.circular(10))))),
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "EDIT MATCH DETAILS",
+              style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1),
+            ),
+            const SizedBox(height: 16),
+            _buildInputField("Match Title", titleCtrl, Icons.sports_rounded),
+            const SizedBox(height: 10),
+            _buildInputField("Venue / Location", locationCtrl, Icons.location_on_outlined),
+            const SizedBox(height: 10),
+            _buildInputField("Max Players", maxPlayersCtrl, Icons.groups_rounded, keyboardType: TextInputType.number),
             const SizedBox(height: 20),
-            const Text("EDIT MATCH DETAILS", style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5)),
-            const SizedBox(height: 20),
-            _buildInputField("Match Title", titleCtrl, Icons.sports),
-            const SizedBox(height: 12),
-            _buildInputField("Location / Venue", locationCtrl, Icons.location_on_outlined),
-            const SizedBox(height: 12),
-            _buildInputField("Max Players", maxPlayersCtrl, Icons.groups_outlined, keyboardType: TextInputType.number),
-            const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF39FF14),
                   foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
@@ -249,38 +258,42 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       );
+                      setState(() {});
                     }
                   } catch (e) {
                     if (mounted) {
                       messenger.showSnackBar(
-                        SnackBar(content: Text("Update error: $e"), backgroundColor: Colors.redAccent),
+                        SnackBar(content: Text("Error updating match: $e"), backgroundColor: Colors.redAccent),
                       );
                     }
                   }
                 },
-                child: const Text("SAVE CHANGES", style: TextStyle(fontWeight: FontWeight.w900)),
+                child: const Text("SAVE CHANGES", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
               ),
             ),
-            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInputField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildInputField(String label, TextEditingController controller, IconData icon, {TextInputType? keyboardType}) {
     return Container(
-      decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(15)),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: const TextStyle(color: Colors.white, fontSize: 13),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.white24, size: 18),
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.white24, fontSize: 10),
+          labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+          prefixIcon: Icon(icon, color: const Color(0xFF39FF14), size: 18),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         ),
       ),
     );
@@ -289,69 +302,72 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0A0A0A),
       appBar: AppBar(
         title: const Text(
-          "MY LOBBIES",
-          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 18),
+          "MY MATCH SQUADS",
+          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 18, color: Colors.white),
         ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFF0A0A0A),
         elevation: 0,
         automaticallyImplyLeading: false,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF39FF14),
-          indicatorWeight: 3,
-          indicatorSize: TabBarIndicatorSize.tab,
-          labelColor: const Color(0xFF39FF14),
-          unselectedLabelColor: Colors.white38,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          dividerColor: Colors.white.withValues(alpha: 0.08),
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.star_rounded, size: 18),
-              text: "HOSTED BY ME",
+        actions: [
+          IconButton(
+            tooltip: "Host New Match",
+            icon: const Icon(Icons.add_circle_rounded, color: Color(0xFF39FF14), size: 28),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141414),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             ),
-            Tab(
-              icon: Icon(Icons.groups_rounded, size: 18),
-              text: "JOINED MATCHES",
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: const Color(0xFF39FF14),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.white60,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(text: "HOSTED BY ME"),
+                Tab(text: "JOINED MATCHES"),
+              ],
             ),
-          ],
+          ),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Tab 1: Hosted by Me
-          _buildHostedByMeTab(),
-
-          // Tab 2: Joined Matches
-          _buildJoinedMatchesTab(),
+          _buildHostedTab(),
+          _buildJoinedTab(),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF39FF14),
-        foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
-          );
-        },
-        icon: const Icon(Icons.add, size: 22),
-        label: const Text("HOST A MATCH", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
       ),
     );
   }
 
-  /// Tab 1: Lobbies Hosted by Current User
-  Widget _buildHostedByMeTab() {
+  /// 1. Hosted Matches Tab
+  Widget _buildHostedTab() {
     return RefreshIndicator(
       color: const Color(0xFF39FF14),
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: const Color(0xFF141414),
       onRefresh: _handleRefresh,
       child: StreamBuilder<List<LobbyModel>>(
         stream: _myHostedLobbiesStream,
@@ -361,74 +377,32 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text("Error loading your lobbies: ${snapshot.error}", style: const TextStyle(color: Colors.redAccent)),
-            );
+            return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.redAccent)));
           }
 
-          final myLobbies = snapshot.data ?? [];
+          final lobbies = snapshot.data ?? [];
 
-          if (myLobbies.isEmpty) {
-            return LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFFFD700).withValues(alpha: 0.05),
-                            border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.2)),
-                          ),
-                          child: const Icon(Icons.sports_kabaddi, size: 52, color: Color(0xFFFFD700)),
-                        ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          "YOU HAVEN'T HOSTED ANY MATCHES",
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Create a sports game room to invite players!",
-                          style: TextStyle(color: Colors.white38, fontSize: 13),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF39FF14),
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
-                            );
-                          },
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text("CREATE FIRST MATCH", style: TextStyle(fontWeight: FontWeight.w900)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          if (lobbies.isEmpty) {
+            return _buildEmptyState(
+              icon: Icons.sports_soccer_rounded,
+              title: "NO HOSTED MATCHES",
+              subtitle: "You haven't organized any match lobbies yet.\nLaunch one to bring players together!",
+              buttonText: "HOST A MATCH",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
+                );
+              },
             );
           }
 
           return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 12, bottom: 100),
-            itemCount: myLobbies.length,
+            padding: const EdgeInsets.only(top: 8, bottom: 24),
+            itemCount: lobbies.length,
             itemBuilder: (context, index) {
-              final lobby = myLobbies[index];
-              return _buildHostedLobbyCard(lobby);
+              final lobby = lobbies[index];
+              return _buildHostedCard(lobby);
             },
           );
         },
@@ -436,344 +410,349 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildHostedLobbyCard(LobbyModel lobby) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => LobbyDetailsPage(lobby: lobby)),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF141912),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.35), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF39FF14).withValues(alpha: 0.05),
-              blurRadius: 16,
-              spreadRadius: 1,
-            )
-          ],
+  Widget _buildHostedCard(LobbyModel lobby) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF39FF14).withValues(alpha: 0.35),
+          width: 1.2,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Badges & Live Capacity
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          lobby.sport.toUpperCase(),
-                          style: const TextStyle(
-                            color: Color(0xFF39FF14),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.star_rounded, color: Color(0xFFFFD700), size: 12),
-                            SizedBox(width: 3),
-                            Text(
-                              "ORGANIZER",
-                              style: TextStyle(
-                                color: Color(0xFFFFD700),
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Sport tag, Organizer badge, Capacity
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF39FF14).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  lobby.sport.toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF39FF14),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(width: 8),
-
-                // Live Capacity Stream Badge
-                StreamBuilder<List<LobbyParticipantModel>>(
-                  stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
-                  builder: (context, snapshot) {
-                    final participants = snapshot.data ?? [];
-                    final approvedCount = participants.where((p) => p.status == 'approved').length;
-                    final totalFilled = 1 + approvedCount;
-                    final slotsLeft = (lobby.maxParticipants - totalFilled).clamp(0, lobby.maxParticipants);
-                    final isFull = totalFilled >= lobby.maxParticipants;
-
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isFull
-                            ? Colors.redAccent.withValues(alpha: 0.15)
-                            : const Color(0xFF39FF14).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isFull
-                              ? Colors.redAccent.withValues(alpha: 0.4)
-                              : const Color(0xFF39FF14).withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        isFull ? "FULL ($totalFilled/${lobby.maxParticipants})" : "$totalFilled/${lobby.maxParticipants} • $slotsLeft LEFT",
-                        style: TextStyle(
-                          color: isFull ? Colors.redAccent : const Color(0xFF39FF14),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    );
-                  },
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF39FF14).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Match Title
-            Text(
-              lobby.cleanTitle,
-              style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-
-            // Venue Location
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, color: Colors.white38, size: 16),
+                child: const Text(
+                  "YOUR MATCH",
+                  style: TextStyle(color: Color(0xFF39FF14), fontSize: 9, fontWeight: FontWeight.w900),
+                ),
+              ),
+              if (lobby.hasReferee) ...[
                 const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    lobby.locationName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white60, fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Date, Time, Fee
-            Row(
-              children: [
-                if (lobby.matchDate != null || lobby.matchTime != null)
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_month, color: Color(0xFF39FF14), size: 15),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            "${lobby.matchDate ?? ''} ${lobby.matchTime != null ? '• ${lobby.matchTime}' : ''}".trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF39FF14),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (lobby.feePerPax != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.payments_rounded, color: Color(0xFF39FF14), size: 13),
-                        const SizedBox(width: 4),
-                        Text(
-                          lobby.feePerPax!,
-                          style: const TextStyle(
-                            color: Color(0xFF39FF14),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-
-            // Pending Join Requests Alert Banner
-            StreamBuilder<List<LobbyParticipantModel>>(
-              stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
-              builder: (context, snapshot) {
-                final participants = snapshot.data ?? [];
-                final pendingList = participants.where((p) => p.status == 'pending').toList();
-
-                if (pendingList.isEmpty) return const SizedBox.shrink();
-
-                return Container(
-                  margin: const EdgeInsets.only(top: 14),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Row(
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.mark_email_unread_rounded, color: Colors.amber, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "${pendingList.length} pending player request${pendingList.length > 1 ? 's' : ''}",
-                          style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "Review",
-                              style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 11),
-                            ),
-                            SizedBox(width: 2),
-                            Icon(Icons.chevron_right_rounded, color: Colors.amber, size: 14),
-                          ],
-                        ),
-                      ),
+                      Icon(Icons.sports_rounded, color: Color(0xFFFFD700), size: 10),
+                      SizedBox(width: 3),
+                      Text("REFEREED", style: TextStyle(color: Color(0xFFFFD700), fontSize: 9, fontWeight: FontWeight.w900)),
                     ],
                   ),
-                );
-              },
-            ),
+                ),
+              ],
+              const Spacer(),
+              StreamBuilder<List<LobbyParticipantModel>>(
+                stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
+                builder: (context, snapshot) {
+                  final participants = snapshot.data ?? [];
+                  final approvedCount = participants.where((p) => p.status == 'approved').length;
+                  final totalFilled = 1 + approvedCount;
+                  final isFull = totalFilled >= lobby.maxParticipants;
 
-            const SizedBox(height: 18),
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: isFull ? Colors.redAccent.withValues(alpha: 0.15) : const Color(0xFF39FF14).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      "$totalFilled/${lobby.maxParticipants} Joined",
+                      style: TextStyle(
+                        color: isFull ? Colors.redAccent : const Color(0xFF39FF14),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
 
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF39FF14),
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // Title & Pro Badge
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  lobby.cleanTitle,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.2),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (lobby.hostProfile?.isPremium ?? false) ...[
+                const SizedBox(width: 6),
+                const ProBadgeWidget(isCompact: true),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Joined Players Facepile
+          StreamBuilder<List<LobbyParticipantModel>>(
+            stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
+            builder: (context, snapshot) {
+              final participants = snapshot.data ?? [];
+              final approved = participants.where((p) => p.status == 'approved').toList();
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      height: 22,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Host Avatar
+                          FutureBuilder<ProfileModel?>(
+                            future: _lobbyService.fetchPlayerProfile(lobby.hostId),
+                            builder: (context, hSnap) {
+                              final h = hSnap.data ?? lobby.hostProfile;
+                              return _buildAvatar(
+                                imageUrl: h?.imageUrl,
+                                name: h?.name ?? 'Host',
+                                radius: 10,
+                                borderColor: const Color(0xFFFFD700),
+                              );
+                            },
+                          ),
+                          // Up to 4 approved players
+                          ...approved.take(4).map((p) {
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 3),
+                              child: FutureBuilder<ProfileModel?>(
+                                future: _lobbyService.fetchPlayerProfile(p.userId),
+                                builder: (context, pSnap) {
+                                  final player = pSnap.data;
+                                  return _buildAvatar(
+                                    imageUrl: player?.imageUrl,
+                                    name: player?.name ?? 'P',
+                                    radius: 10,
+                                    borderColor: const Color(0xFF39FF14),
+                                  );
+                                },
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => LobbyDetailsPage(lobby: lobby)),
-                      );
-                    },
-                    icon: const Icon(Icons.manage_accounts_rounded, size: 16),
-                    label: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text("MANAGE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        approved.isEmpty
+                            ? "Waiting for squad players"
+                            : "${approved.length + 1} players in squad",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
                     ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // Location
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined, color: Colors.white38, size: 14),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  lobby.locationName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Schedule & Fee
+          Row(
+            children: [
+              if (lobby.matchDate != null || lobby.matchTime != null) ...[
+                const Icon(Icons.schedule_rounded, color: Colors.white38, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  "${lobby.matchDate ?? ''} ${lobby.matchTime != null ? '• ${lobby.matchTime}' : ''}".trim(),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ],
+              const Spacer(),
+              if (lobby.feePerPax != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF39FF14).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    lobby.feePerPax!,
+                    style: const TextStyle(color: Color(0xFF39FF14), fontSize: 10, fontWeight: FontWeight.w900),
                   ),
                 ),
-                const SizedBox(width: 6),
-                IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
+            ],
+          ),
+
+          // Pending Requests Alert
+          StreamBuilder<List<LobbyParticipantModel>>(
+            stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
+            builder: (context, snapshot) {
+              final participants = snapshot.data ?? [];
+              final pendingList = participants.where((p) => p.status == 'pending').toList();
+
+              if (pendingList.isEmpty) return const SizedBox.shrink();
+
+              return Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.mark_email_unread_rounded, color: Colors.amber, size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "${pendingList.length} pending athlete request${pendingList.length > 1 ? 's' : ''}",
+                        style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 11),
+                      ),
                     ),
-                    padding: const EdgeInsets.all(10),
-                    minimumSize: const Size(38, 38),
+                    const Text("Review", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 11)),
+                    const Icon(Icons.chevron_right_rounded, color: Colors.amber, size: 14),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Actions Row
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF39FF14),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  tooltip: "Squad Group Chat",
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => LobbyGroupChatScreen(lobby: lobby)),
+                      MaterialPageRoute(builder: (context) => LobbyDetailsPage(lobby: lobby)),
                     );
                   },
-                  icon: const Icon(Icons.forum_rounded, color: Color(0xFF39FF14), size: 18),
+                  icon: const Icon(Icons.manage_accounts_rounded, size: 16),
+                  label: const Text("MANAGE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
                 ),
-                const SizedBox(width: 6),
-                IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withValues(alpha: 0.06),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    minimumSize: const Size(38, 38),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFF39FF14).withValues(alpha: 0.15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
                   ),
-                  tooltip: "Edit Match Details",
-                  onPressed: () => _showEditLobbySheet(lobby),
-                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 18),
+                  padding: const EdgeInsets.all(8),
+                  minimumSize: const Size(36, 36),
                 ),
-                const SizedBox(width: 6),
-                IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.3)),
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    minimumSize: const Size(38, 38),
+                tooltip: "Squad Group Chat",
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LobbyGroupChatScreen(lobby: lobby)),
+                  );
+                },
+                icon: const Icon(Icons.forum_rounded, color: Color(0xFF39FF14), size: 16),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.06),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
                   ),
-                  onPressed: () => _deleteLobby(lobby.id, lobby.title),
-                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                  tooltip: "Cancel Match",
+                  padding: const EdgeInsets.all(8),
+                  minimumSize: const Size(36, 36),
                 ),
-              ],
-            ),
-          ],
-        ),
+                tooltip: "Edit Match Details",
+                onPressed: () => _showEditLobbySheet(lobby),
+                icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 16),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.redAccent.withValues(alpha: 0.12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.3)),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  minimumSize: const Size(36, 36),
+                ),
+                tooltip: "Cancel Match",
+                onPressed: () => _deleteLobby(lobby.id, lobby.cleanTitle),
+                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 16),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  /// Tab 2: Lobbies the User has Requested / Joined
-  Widget _buildJoinedMatchesTab() {
+  /// 2. Joined Matches Tab
+  Widget _buildJoinedTab() {
     return RefreshIndicator(
       color: const Color(0xFF39FF14),
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: const Color(0xFF141414),
       onRefresh: _handleRefresh,
       child: StreamBuilder<List<LobbyParticipantModel>>(
         stream: _myJoinedRequestsStream,
@@ -783,79 +762,34 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text("Error loading joined matches: ${snapshot.error}", style: const TextStyle(color: Colors.redAccent)),
-            );
+            return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.redAccent)));
           }
 
-          final joinedRequests = snapshot.data ?? [];
+          final requests = snapshot.data ?? [];
 
-          if (joinedRequests.isEmpty) {
-            return LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF39FF14).withValues(alpha: 0.05),
-                            border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.2)),
-                          ),
-                          child: const Icon(Icons.groups_3_rounded, size: 52, color: Color(0xFF39FF14)),
-                        ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          "NO JOINED MATCHES YET",
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Explore active lobbies and request to join upcoming games!",
-                          style: TextStyle(color: Colors.white38, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          if (requests.isEmpty) {
+            return _buildEmptyState(
+              icon: Icons.groups_rounded,
+              title: "NO JOINED MATCHES",
+              subtitle: "You haven't requested or joined any matches yet.\nExplore the lobby feed to jump into a game!",
+              buttonText: "EXPLORE MATCHES",
+              onTap: () => Navigator.pop(context),
             );
           }
 
           return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 12, bottom: 100),
-            itemCount: joinedRequests.length,
+            padding: const EdgeInsets.only(top: 8, bottom: 24),
+            itemCount: requests.length,
             itemBuilder: (context, index) {
-              final req = joinedRequests[index];
+              final req = requests[index];
               return FutureBuilder<LobbyModel?>(
                 future: _getOrFetchLobby(req.lobbyId),
-                builder: (context, lobbySnapshot) {
-                  final lobby = lobbySnapshot.data;
+                builder: (context, lobbySnap) {
+                  final lobby = lobbySnap.data;
                   if (lobby == null) {
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F0F0F),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Center(
-                        child: SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Color(0xFF39FF14), strokeWidth: 2),
-                        ),
-                      ),
-                    );
+                    return const SizedBox.shrink();
                   }
-
-                  return _buildJoinedLobbyCard(req, lobby);
+                  return _buildJoinedCard(lobby, req);
                 },
               );
             },
@@ -865,238 +799,433 @@ class _MyLobbiesScreenState extends State<MyLobbiesScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildJoinedLobbyCard(LobbyParticipantModel req, LobbyModel lobby) {
-    final status = req.status; // 'approved', 'pending', 'rejected'
+  Widget _buildJoinedCard(LobbyModel lobby, LobbyParticipantModel participant) {
+    final status = participant.status;
     final isApproved = status == 'approved';
     final isPending = status == 'pending';
+    final isReferee = participant.role == 'referee';
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => LobbyDetailsPage(lobby: lobby)),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F0F0F),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isApproved
-                ? const Color(0xFF39FF14).withValues(alpha: 0.35)
-                : (isPending ? Colors.amber.withValues(alpha: 0.3) : Colors.redAccent.withValues(alpha: 0.3)),
-            width: 1.2,
-          ),
+    Color statusColor = Colors.grey;
+    String statusText = status.toUpperCase();
+
+    if (isApproved) {
+      statusColor = const Color(0xFF39FF14);
+      statusText = isReferee ? "MATCH REFEREE" : "JOINED SQUAD";
+    } else if (isPending) {
+      statusColor = Colors.amber;
+      statusText = "PENDING APPROVAL";
+    } else if (status == 'rejected') {
+      statusColor = Colors.redAccent;
+      statusText = "DECLINED";
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isApproved ? const Color(0xFF39FF14).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.06),
+          width: 1.0,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Status & Sport Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF39FF14).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    lobby.sport.toUpperCase(),
-                    style: const TextStyle(
-                      color: Color(0xFF39FF14),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                      letterSpacing: 1,
-                    ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Sport tag, Status badge
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF39FF14).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  lobby.sport.toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF39FF14),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
                   ),
                 ),
-
-                // Status Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isApproved
-                        ? const Color(0xFF0F2B12)
-                        : (isPending ? Colors.amber.withValues(alpha: 0.15) : const Color(0xFF2B0F0F)),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isApproved
-                          ? const Color(0xFF39FF14).withValues(alpha: 0.4)
-                          : (isPending ? Colors.amber.withValues(alpha: 0.4) : Colors.redAccent.withValues(alpha: 0.4)),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isApproved ? Icons.check_circle : (isPending ? Icons.hourglass_top_rounded : Icons.cancel_outlined),
-                        size: 13,
-                        color: isApproved ? const Color(0xFF39FF14) : (isPending ? Colors.amber : Colors.redAccent),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isApproved ? "SQUAD MEMBER" : (isPending ? "PENDING REVIEW" : "DECLINED"),
-                        style: TextStyle(
-                          color: isApproved ? const Color(0xFF39FF14) : (isPending ? Colors.amber : Colors.redAccent),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.4)),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isApproved ? (isReferee ? Icons.sports_rounded : Icons.check_circle_rounded) : (isPending ? Icons.hourglass_top_rounded : Icons.cancel_rounded),
+                      color: statusColor,
+                      size: 11,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      statusText,
+                      style: TextStyle(color: statusColor, fontSize: 9, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
 
-            // Title
-            Text(
-              lobby.cleanTitle,
-              style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-
-            // Location
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, color: Colors.white38, size: 16),
+          // Title & Pro Badge
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  lobby.cleanTitle,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.2),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (lobby.hostProfile?.isPremium ?? false) ...[
                 const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    lobby.locationName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white60, fontSize: 13),
-                  ),
-                ),
+                const ProBadgeWidget(isCompact: true),
               ],
-            ),
-            const SizedBox(height: 8),
+            ],
+          ),
+          const SizedBox(height: 6),
 
-            // Date / Time / Fee
-            Row(
-              children: [
-                if (lobby.matchDate != null || lobby.matchTime != null)
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_month, color: Color(0xFF39FF14), size: 15),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            "${lobby.matchDate ?? ''} ${lobby.matchTime != null ? '• ${lobby.matchTime}' : ''}".trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF39FF14),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (lobby.feePerPax != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.payments_rounded, color: Color(0xFF39FF14), size: 13),
-                        const SizedBox(width: 4),
-                        Text(
-                          lobby.feePerPax!,
-                          style: const TextStyle(
-                            color: Color(0xFF39FF14),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          // Host Profile row
+          FutureBuilder<ProfileModel?>(
+            future: _lobbyService.fetchPlayerProfile(lobby.hostId),
+            builder: (context, hostSnap) {
+              final hostProfile = hostSnap.data ?? lobby.hostProfile;
+              final hostName = hostProfile?.name ?? 'Match Host';
+              final hostImg = hostProfile?.imageUrl;
 
-            const SizedBox(height: 18),
-
-            // Bottom Actions
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF39FF14),
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    _buildAvatar(
+                      imageUrl: hostImg,
+                      name: hostName,
+                      radius: 10,
+                      borderColor: const Color(0xFFFFD700),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => LobbyDetailsPage(lobby: lobby)),
-                      );
-                    },
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text("VIEW MATCH", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
-                    ),
-                  ),
-                ),
-                if (isApproved) ...[
-                  const SizedBox(width: 6),
-                  IconButton(
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
+                    const SizedBox(width: 7),
+                    Flexible(
+                      child: Text(
+                        "Hosted by $hostName",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
                       ),
-                      padding: const EdgeInsets.all(10),
-                      minimumSize: const Size(38, 38),
                     ),
-                    tooltip: "Squad Group Chat",
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => LobbyGroupChatScreen(lobby: lobby)),
-                      );
-                    },
-                    icon: const Icon(Icons.forum_rounded, color: Color(0xFF39FF14), size: 18),
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        "HOST",
+                        style: TextStyle(color: Color(0xFFFFD700), fontSize: 8, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // Joined Players Facepile
+          StreamBuilder<List<LobbyParticipantModel>>(
+            stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
+            builder: (context, snapshot) {
+              final participants = snapshot.data ?? [];
+              final approved = participants.where((p) => p.status == 'approved').toList();
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      height: 22,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FutureBuilder<ProfileModel?>(
+                            future: _lobbyService.fetchPlayerProfile(lobby.hostId),
+                            builder: (context, hSnap) {
+                              final h = hSnap.data ?? lobby.hostProfile;
+                              return _buildAvatar(
+                                imageUrl: h?.imageUrl,
+                                name: h?.name ?? 'Host',
+                                radius: 10,
+                                borderColor: const Color(0xFFFFD700),
+                              );
+                            },
+                          ),
+                          ...approved.take(4).map((p) {
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 3),
+                              child: FutureBuilder<ProfileModel?>(
+                                future: _lobbyService.fetchPlayerProfile(p.userId),
+                                builder: (context, pSnap) {
+                                  final player = pSnap.data;
+                                  return _buildAvatar(
+                                    imageUrl: player?.imageUrl,
+                                    name: player?.name ?? 'P',
+                                    radius: 10,
+                                    borderColor: const Color(0xFF39FF14),
+                                  );
+                                },
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        approved.isEmpty
+                            ? "Host + waiting for players"
+                            : "${approved.length + 1} athletes in squad",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // Location
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined, color: Colors.white38, size: 14),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  lobby.locationName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Schedule & Fee
+          Row(
+            children: [
+              if (lobby.matchDate != null || lobby.matchTime != null) ...[
+                const Icon(Icons.schedule_rounded, color: Colors.white38, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  "${lobby.matchDate ?? ''} ${lobby.matchTime != null ? '• ${lobby.matchTime}' : ''}".trim(),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ],
+              const Spacer(),
+              if (lobby.feePerPax != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF39FF14).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                ],
+                  child: Text(
+                    lobby.feePerPax!,
+                    style: const TextStyle(color: Color(0xFF39FF14), fontSize: 10, fontWeight: FontWeight.w900),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Actions Row
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF39FF14),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LobbyDetailsPage(lobby: lobby)),
+                    );
+                  },
+                  child: const Text("VIEW DETAILS", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                ),
+              ),
+              if (isApproved) ...[
                 const SizedBox(width: 6),
                 IconButton(
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
+                    backgroundColor: const Color(0xFF39FF14).withValues(alpha: 0.15),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.3)),
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
                     ),
-                    padding: const EdgeInsets.all(10),
-                    minimumSize: const Size(38, 38),
+                    padding: const EdgeInsets.all(8),
+                    minimumSize: const Size(36, 36),
                   ),
-                  tooltip: isApproved ? "Leave Match" : "Withdraw Request",
-                  onPressed: () => _leaveMatch(lobby.id, lobby.cleanTitle),
-                  icon: const Icon(Icons.exit_to_app, color: Colors.redAccent, size: 18),
+                  tooltip: "Squad Group Chat",
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LobbyGroupChatScreen(lobby: lobby)),
+                    );
+                  },
+                  icon: const Icon(Icons.forum_rounded, color: Color(0xFF39FF14), size: 16),
                 ),
               ],
+              const SizedBox(width: 6),
+              IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.redAccent.withValues(alpha: 0.12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.3)),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  minimumSize: const Size(36, 36),
+                ),
+                tooltip: isPending ? "Withdraw Request" : "Leave Match",
+                onPressed: () => _leaveMatch(lobby.id, lobby.cleanTitle),
+                icon: const Icon(Icons.exit_to_app_rounded, color: Colors.redAccent, size: 16),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String buttonText,
+    required VoidCallback onTap,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF39FF14).withValues(alpha: 0.05),
+                      border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.15)),
+                    ),
+                    child: Icon(icon, size: 40, color: const Color(0xFF39FF14)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 1),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF39FF14),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: onTap,
+                    icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                    label: Text(buttonText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar({
+    required String? imageUrl,
+    required String name,
+    required double radius,
+    required Color borderColor,
+  }) {
+    Widget imageWidget;
+
+    if (imageUrl != null && imageUrl.startsWith('http')) {
+      imageWidget = Image.network(
+        imageUrl,
+        width: radius * 2,
+        height: radius * 2,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(name, radius),
+      );
+    } else if (imageUrl != null && imageUrl.isNotEmpty) {
+      imageWidget = Image.asset(
+        imageUrl,
+        width: radius * 2,
+        height: radius * 2,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(name, radius),
+      );
+    } else {
+      imageWidget = _buildFallbackInitial(name, radius);
+    }
+
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor, width: 1.2),
+        color: borderColor.withValues(alpha: 0.12),
+      ),
+      child: ClipOval(child: imageWidget),
+    );
+  }
+
+  Widget _buildFallbackInitial(String name, double radius) {
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'P';
+    return Center(
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: const Color(0xFFFFD700),
+          fontWeight: FontWeight.w900,
+          fontSize: radius * 0.9,
         ),
       ),
     );

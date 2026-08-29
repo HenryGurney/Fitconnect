@@ -701,7 +701,72 @@ class LobbyCardWidget extends StatelessWidget {
               },
             ),
 
-            // 4. Location & Distance
+            // 4. Joined Squad Player Avatars (Facepile)
+            StreamBuilder<List<LobbyParticipantModel>>(
+              stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
+              builder: (context, snapshot) {
+                final participants = snapshot.data ?? [];
+                final approved = participants.where((p) => p.status == 'approved').toList();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        height: 22,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            FutureBuilder<ProfileModel?>(
+                              future: _lobbyService.fetchPlayerProfile(lobby.hostId),
+                              builder: (context, hSnap) {
+                                final h = hSnap.data ?? lobby.hostProfile;
+                                return _buildAvatar(
+                                  imageUrl: h?.imageUrl,
+                                  name: h?.name ?? 'Host',
+                                  radius: 10,
+                                  borderColor: const Color(0xFFFFD700),
+                                );
+                              },
+                            ),
+                            ...approved.take(4).map((p) {
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 3),
+                                child: FutureBuilder<ProfileModel?>(
+                                  future: _lobbyService.fetchPlayerProfile(p.userId),
+                                  builder: (context, pSnap) {
+                                    final player = pSnap.data;
+                                    return _buildAvatar(
+                                      imageUrl: player?.imageUrl,
+                                      name: player?.name ?? 'Player',
+                                      radius: 10,
+                                      borderColor: const Color(0xFF39FF14),
+                                    );
+                                  },
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          approved.isEmpty
+                              ? "Waiting for squad to join"
+                              : "${approved.length + 1} athlete${approved.length + 1 > 1 ? 's' : ''} in squad",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            // 5. Location & Distance
             Row(
               children: [
                 const Icon(Icons.location_on_outlined, color: Colors.white38, size: 14),
