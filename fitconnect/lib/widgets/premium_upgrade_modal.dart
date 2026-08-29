@@ -3,6 +3,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import '../services/profile_service.dart';
 import '../services/subscription_service.dart';
 import 'pro_badge_widget.dart';
+import 'payment_gateway_modal.dart';
 
 class PremiumUpgradeModal extends StatefulWidget {
   final VoidCallback? onUpgradeSuccess;
@@ -110,42 +111,41 @@ class _PremiumUpgradeModalState extends State<PremiumUpgradeModal> {
   }
 
   Future<void> _handleUpgrade() async {
-    setState(() => _isUpgrading = true);
+    final selectedPlan = _plans[_selectedPlanIndex];
+    final double amount = _selectedPlanIndex == 0 ? 19.90 : 149.00;
 
-    try {
-      final selectedPlan = _plans[_selectedPlanIndex];
-      final package = selectedPlan['package'] as Package?;
+    PaymentGatewayModal.show(
+      context,
+      itemName: "FitConnect PRO (${selectedPlan['title']})",
+      itemDescription: "Unlimited Swipes, Pinned Lobbies & Golden Crown",
+      amount: amount,
+      onPaymentSuccess: () async {
+        setState(() => _isUpgrading = true);
+        try {
+          final package = selectedPlan['package'] as Package?;
+          if (package != null && _subscriptionService.isConfigured) {
+            await _subscriptionService.purchasePackage(package);
+          } else {
+            await _profileService.updateTier('premium');
+          }
 
-      if (package != null && _subscriptionService.isConfigured) {
-        // Real RevenueCat In-App Purchase flow
-        await _subscriptionService.purchasePackage(package);
-      } else {
-        // Sandbox or fallback activation
-        await _profileService.updateTier('premium');
-      }
+          if (!mounted) return;
 
-      if (!mounted) return;
+          Navigator.pop(context); // Close bottom sheet
 
-      Navigator.pop(context); // Close bottom sheet
+          if (widget.onUpgradeSuccess != null) {
+            widget.onUpgradeSuccess!();
+          }
 
-      if (widget.onUpgradeSuccess != null) {
-        widget.onUpgradeSuccess!();
-      }
-
-      // Show congratulations celebration dialog
-      _showSuccessCelebration(context);
-    } catch (e) {
-      debugPrint("Upgrade error: $e");
-      if (mounted) {
-        setState(() => _isUpgrading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Purchase process: $e"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
+          // Show congratulations celebration dialog
+          _showSuccessCelebration(context);
+        } catch (e) {
+          debugPrint("Upgrade error: $e");
+        } finally {
+          if (mounted) setState(() => _isUpgrading = false);
+        }
+      },
+    );
   }
 
   Future<void> _handleRestorePurchases() async {

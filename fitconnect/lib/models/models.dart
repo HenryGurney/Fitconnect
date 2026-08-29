@@ -111,6 +111,9 @@ class LobbyModel {
   final DateTime? createdAt;
   final String? matchDate;
   final String? matchTime;
+  final bool hasReferee;
+  final String? refereeId;
+  final String? refereeName;
   final ProfileModel? hostProfile;
 
   const LobbyModel({
@@ -126,6 +129,9 @@ class LobbyModel {
     this.createdAt,
     this.matchDate,
     this.matchTime,
+    this.hasReferee = false,
+    this.refereeId,
+    this.refereeName,
     this.hostProfile,
   });
 
@@ -145,9 +151,14 @@ class LobbyModel {
       parsedHostProfile = ProfileModel.fromJson(json['profiles'] as Map<String, dynamic>);
     }
 
+    final rawTitle = json['title']?.toString() ?? 'Casual Match';
+    final bool refFlag = json['has_referee'] == true ||
+        rawTitle.toLowerCase().contains('referee') ||
+        rawTitle.toLowerCase().contains('[ref]');
+
     return LobbyModel(
       id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'Casual Match',
+      title: rawTitle,
       sport: json['sport']?.toString() ?? 'Futsal',
       locationName: json['location_name']?.toString() ?? json['location']?.toString() ?? 'Unknown Venue',
       latitude: double.tryParse(json['latitude']?.toString() ?? '3.1390') ?? 3.1390,
@@ -162,11 +173,14 @@ class LobbyModel {
           : null,
       matchDate: json['match_date']?.toString() ?? json['date']?.toString(),
       matchTime: json['match_time']?.toString() ?? json['time']?.toString(),
+      hasReferee: refFlag,
+      refereeId: json['referee_id']?.toString(),
+      refereeName: json['referee_name']?.toString(),
       hostProfile: parsedHostProfile,
     );
   }
 
-  /// Extracts clean title without fee or gender bracket tags
+  /// Extracts clean title without fee, referee or gender bracket tags
   String get cleanTitle {
     var text = title;
     text = text.replaceAll(RegExp(r'•\s*\[[^\]]*\]?'), '');
@@ -207,6 +221,9 @@ class LobbyModel {
       'skills': skills,
       'max_participants': maxParticipants,
       'host_id': hostId,
+      'has_referee': hasReferee,
+      if (refereeId != null) 'referee_id': refereeId,
+      if (refereeName != null) 'referee_name': refereeName,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (matchDate != null) 'match_date': matchDate,
       if (matchTime != null) 'match_time': matchTime,
@@ -220,6 +237,8 @@ class LobbyParticipantModel {
   final String lobbyId;
   final String userId;
   final String status; // 'pending', 'approved', 'rejected'
+  final String role; // 'player', 'referee'
+  final String? paymentStatus; // 'unpaid', 'paid', 'exempt'
   final DateTime? createdAt;
   final ProfileModel? userProfile;
 
@@ -228,6 +247,8 @@ class LobbyParticipantModel {
     required this.lobbyId,
     required this.userId,
     required this.status,
+    this.role = 'player',
+    this.paymentStatus,
     this.createdAt,
     this.userProfile,
   });
@@ -243,6 +264,8 @@ class LobbyParticipantModel {
       lobbyId: json['lobby_id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? '',
       status: json['status']?.toString() ?? 'pending',
+      role: json['role']?.toString() ?? 'player',
+      paymentStatus: json['payment_status']?.toString() ?? (json['paid'] == true ? 'paid' : 'unpaid'),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -256,6 +279,8 @@ class LobbyParticipantModel {
       'lobby_id': lobbyId,
       'user_id': userId,
       'status': status,
+      'role': role,
+      if (paymentStatus != null) 'payment_status': paymentStatus,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
     };
   }
@@ -267,6 +292,8 @@ class MessageModel {
   final String senderId;
   final String receiverId;
   final String content;
+  final String? imageUrl;
+  final bool isReceipt;
   final DateTime createdAt;
   final ProfileModel? senderProfile;
 
@@ -275,6 +302,8 @@ class MessageModel {
     required this.senderId,
     required this.receiverId,
     required this.content,
+    this.imageUrl,
+    this.isReceipt = false,
     required this.createdAt,
     this.senderProfile,
   });
@@ -285,11 +314,15 @@ class MessageModel {
       parsedSender = ProfileModel.fromJson(json['profiles'] as Map<String, dynamic>);
     }
 
+    final rawImage = json['image_url']?.toString() ?? json['imageUrl']?.toString() ?? json['attachment_url']?.toString();
+
     return MessageModel(
       id: json['id']?.toString() ?? '',
       senderId: json['sender_id']?.toString() ?? '',
       receiverId: json['receiver_id']?.toString() ?? '',
       content: json['content']?.toString() ?? '',
+      imageUrl: rawImage,
+      isReceipt: json['is_receipt'] == true || (rawImage != null && (json['content']?.toString().contains('Receipt') ?? false)),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -303,6 +336,8 @@ class MessageModel {
       'sender_id': senderId,
       'receiver_id': receiverId,
       'content': content,
+      if (imageUrl != null) 'image_url': imageUrl,
+      'is_receipt': isReceipt,
       'created_at': createdAt.toIso8601String(),
     };
   }

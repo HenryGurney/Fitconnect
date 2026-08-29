@@ -57,15 +57,19 @@ class LobbyService {
     String? matchDate,
     String? matchTime,
     String? courtFee,
+    bool hasReferee = false,
     bool isSpotlight = false,
   }) async {
     if (currentUserId == null) throw Exception("User must be logged in to host events.");
 
-    // Attach fee badge / tags to title if provided
+    // Attach fee badge & referee tag to title
     String finalTitle = title;
     if (courtFee != null && courtFee.trim().isNotEmpty && courtFee != 'Free (Casual)') {
       final cleanFee = courtFee.trim();
-      finalTitle = '$title • $cleanFee';
+      finalTitle = '$finalTitle • $cleanFee';
+    }
+    if (hasReferee) {
+      finalTitle = '$finalTitle • [Referee]';
     }
 
     final payload = <String, dynamic>{
@@ -77,21 +81,56 @@ class LobbyService {
       'skills': skills,
       'max_participants': maxParticipants,
       'host_id': currentUserId,
+      'has_referee': hasReferee,
       if (matchDate != null) 'match_date': matchDate,
       if (matchTime != null) 'match_time': matchTime,
     };
 
-    await _supabase.from('lobbies').insert(payload);
+    try {
+      await _supabase.from('lobbies').insert(payload);
+    } catch (e) {
+      // Fallback if has_referee column is not in Postgres yet
+      payload.remove('has_referee');
+      await _supabase.from('lobbies').insert(payload);
+    }
   }
 
   /// 3. Submits an initial membership join request (Defaults to 'pending' state)
-  Future<void> requestToJoinLobby(String lobbyId) async {
+  Future<void> requestToJoinLobby(String lobbyId, {String role = 'player'}) async {
     if (currentUserId == null) throw Exception("User not logged in.");
-    await _supabase.from('lobby_participants').insert({
-      'lobby_id': lobbyId,
-      'user_id': currentUserId,
-      'status': 'pending'
-    });
+    try {
+      await _supabase.from('lobby_participants').insert({
+        'lobby_id': lobbyId,
+        'user_id': currentUserId,
+        'status': 'pending',
+        'role': role,
+      });
+    } catch (e) {
+      await _supabase.from('lobby_participants').insert({
+        'lobby_id': lobbyId,
+        'user_id': currentUserId,
+        'status': 'pending',
+      });
+    }
+  }
+
+  /// 3b. Claim the dedicated match referee slot
+  Future<void> claimRefereeSlot(String lobbyId) async {
+    if (currentUserId == null) throw Exception("User not logged in.");
+    try {
+      await _supabase.from('lobby_participants').insert({
+        'lobby_id': lobbyId,
+        'user_id': currentUserId,
+        'status': 'approved',
+        'role': 'referee',
+      });
+    } catch (e) {
+      await _supabase.from('lobby_participants').insert({
+        'lobby_id': lobbyId,
+        'user_id': currentUserId,
+        'status': 'approved',
+      });
+    }
   }
 
   /// 4. Updates status variables for an entry (Executed by match host profiles)

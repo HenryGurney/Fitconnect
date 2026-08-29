@@ -298,6 +298,16 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
                 ),
                 const SizedBox(height: 12),
 
+                // 0. Referee Slot (If Requested by Host)
+                if (_lobby.hasReferee) ...[
+                  _buildRefereeSlotCard(
+                    lobbyId: lobbyId,
+                    approvedParticipants: approvedParticipants,
+                    isHost: isHost,
+                  ),
+                  const SizedBox(height: 6),
+                ],
+
                 // 1. Host Card
                 _buildHostRosterCard(hostId),
 
@@ -518,6 +528,151 @@ class _LobbyDetailsPageState extends State<LobbyDetailsPage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// Dedicated Referee Card in Roster
+  Widget _buildRefereeSlotCard({
+    required String lobbyId,
+    required List<LobbyParticipantModel> approvedParticipants,
+    required bool isHost,
+  }) {
+    final currentUserId = _lobbyService.currentUserId;
+    final refereeParticipant = approvedParticipants.where((p) => p.role == 'referee').firstOrNull;
+
+    if (refereeParticipant != null) {
+      final isMeRef = refereeParticipant.userId == currentUserId;
+      return FutureBuilder<ProfileModel?>(
+        future: _getOrFetchProfile(refereeParticipant.userId),
+        builder: (context, snap) {
+          final p = snap.data ?? refereeParticipant.userProfile;
+          final name = p?.name ?? (isMeRef ? "You" : "Match Referee");
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C190D),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5), width: 1.2),
+            ),
+            child: Row(
+              children: [
+                _buildAvatarWidget(
+                  imageUrl: p?.imageUrl,
+                  name: name,
+                  radius: 20,
+                  borderColor: const Color(0xFFFFD700),
+                  isHost: false,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              isMeRef ? "$name (You)" : name,
+                              style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text("REFEREE 🟡", style: TextStyle(color: Color(0xFFFFD700), fontSize: 9, fontWeight: FontWeight.w900)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text("Official Match Arbitrator • Certified", style: TextStyle(color: Colors.white60, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // Unassigned referee slot
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141208),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.25), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+              border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+            ),
+            child: const Center(
+              child: Icon(Icons.sports_rounded, color: Color(0xFFFFD700), size: 20),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Referee Slot Available",
+                  style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text(
+                  "Host requested an official referee for this match",
+                  style: TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          if (!isHost)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD700),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await _lobbyService.claimRefereeSlot(lobbyId);
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text("🟡 You have been assigned as the Match Referee!"),
+                        backgroundColor: Color(0xFF1A1A1A),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text("Error: $e"), backgroundColor: Colors.redAccent),
+                    );
+                  }
+                }
+              },
+              child: const Text("CLAIM REF", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+            ),
+        ],
       ),
     );
   }

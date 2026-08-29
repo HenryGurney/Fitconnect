@@ -624,6 +624,34 @@ class LobbyCardWidget extends StatelessWidget {
                         ),
                       ],
 
+                      // Referee Badge
+                      if (lobby.hasReferee) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.sports_rounded, color: Color(0xFFFFD700), size: 10),
+                              SizedBox(width: 3),
+                              Text(
+                                "REFEREED",
+                                style: TextStyle(
+                                  color: Color(0xFFFFD700),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       if (gender != null) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),

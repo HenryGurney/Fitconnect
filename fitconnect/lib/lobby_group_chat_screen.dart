@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'models/models.dart';
 import 'services/chat_service.dart';
 import 'lobby_service.dart';
@@ -19,9 +20,11 @@ class LobbyGroupChatScreen extends StatefulWidget {
 class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
   final ChatService _chatService = ChatService();
   final LobbyService _lobbyService = LobbyService();
+  final ImagePicker _imagePicker = ImagePicker();
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Map<String, ProfileModel?> _profileCache = {};
+  bool _isUploading = false;
 
   String _pinnedAnnouncement = "📌 Court details: Please arrive 15m early with turf shoes!";
   bool _isAnnouncementExpanded = true;
@@ -42,9 +45,9 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
     return profile;
   }
 
-  Future<void> _handleSendMessage([String? prefilled]) async {
+  Future<void> _handleSendMessage({String? prefilled, String? imageUrl, bool isReceipt = false}) async {
     final text = (prefilled ?? _msgController.text).trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && imageUrl == null) return;
 
     if (prefilled == null) {
       _msgController.clear();
@@ -54,6 +57,8 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
       await _chatService.sendLobbyMessage(
         lobbyId: widget.lobby.id,
         content: text,
+        imageUrl: imageUrl,
+        isReceipt: isReceipt,
       );
       _scrollToBottom();
     } catch (e) {
@@ -66,6 +71,138 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
         );
       }
     }
+  }
+
+  Future<void> _pickAndAttachImage(ImageSource source, {bool isReceipt = false}) async {
+    try {
+      final picked = await _imagePicker.pickImage(source: source, imageQuality: 70);
+      if (picked == null) return;
+
+      setState(() => _isUploading = true);
+
+      final url = await _chatService.uploadChatImage(picked);
+      if (url != null) {
+        await _handleSendMessage(imageUrl: url, isReceipt: isReceipt);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to upload image. Please try again."), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Squad attachment error: $e");
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  void _showAttachmentSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "SHARE TO SQUAD CHAT",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF39FF14).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF39FF14), size: 20),
+                ),
+                title: const Text("Forward Payment Receipt 🧾", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("Proof of court fee transfer to host", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndAttachImage(ImageSource.gallery, isReceipt: true);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: Colors.blueAccent, size: 20),
+                ),
+                title: const Text("Photo Gallery", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("Share court location, gear, or team photos", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndAttachImage(ImageSource.gallery, isReceipt: false);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.purpleAccent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: Colors.purpleAccent, size: 20),
+                ),
+                title: const Text("Take Photo", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("Capture live court conditions", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndAttachImage(ImageSource.camera, isReceipt: false);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(10),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              clipBehavior: Clip.none,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -357,7 +494,7 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
                 setState(() {
                   _pinnedAnnouncement = newText;
                 });
-                _handleSendMessage("📌 PINNED ANNOUNCEMENT: $newText");
+                _handleSendMessage(prefilled: "📌 PINNED ANNOUNCEMENT: $newText");
               }
               Navigator.pop(dialogCtx);
             },
@@ -835,7 +972,7 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
                         fontWeight: isHost ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
-                    onPressed: () => _handleSendMessage(reply),
+                    onPressed: () => _handleSendMessage(prefilled: reply),
                   ),
                 );
               },
@@ -846,10 +983,10 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
           // Bottom Input Bar
           Container(
             padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 10,
-              bottom: MediaQuery.of(context).padding.bottom + 10,
+              left: 12,
+              right: 14,
+              top: 8,
+              bottom: MediaQuery.of(context).padding.bottom + 8,
             ),
             decoration: BoxDecoration(
               color: const Color(0xFF141414),
@@ -857,6 +994,18 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
             ),
             child: Row(
               children: [
+                IconButton(
+                  icon: _isUploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Color(0xFF39FF14), strokeWidth: 2),
+                        )
+                      : const Icon(Icons.attach_file_rounded, color: Color(0xFF39FF14), size: 22),
+                  tooltip: "Attach Receipt / Photo",
+                  onPressed: _isUploading ? null : _showAttachmentSheet,
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -871,7 +1020,7 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
                       decoration: const InputDecoration(
                         hintText: "Message the match squad...",
                         hintStyle: TextStyle(color: Colors.white30, fontSize: 13),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         border: InputBorder.none,
                       ),
                       onSubmitted: (_) => _handleSendMessage(),
@@ -885,7 +1034,7 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.send_rounded, color: Colors.black, size: 20),
+                    icon: const Icon(Icons.send_rounded, color: Colors.black, size: 19),
                     onPressed: () => _handleSendMessage(),
                   ),
                 ),
@@ -899,6 +1048,7 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
 
   Widget _buildMessageItem(MessageModel msg, bool isMe, bool isHost) {
     final timeStr = "${msg.createdAt.hour.toString().padLeft(2, '0')}:${msg.createdAt.minute.toString().padLeft(2, '0')}";
+    final hasImage = msg.imageUrl != null && msg.imageUrl!.isNotEmpty;
 
     if (isMe) {
       return Padding(
@@ -911,7 +1061,7 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
             const SizedBox(width: 6),
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: const BoxDecoration(
                   color: Color(0xFF39FF14),
                   borderRadius: BorderRadius.only(
@@ -921,9 +1071,54 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
                     bottomRight: Radius.circular(4),
                   ),
                 ),
-                child: Text(
-                  msg.content,
-                  style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (hasImage) ...[
+                      GestureDetector(
+                        onTap: () => _showFullScreenImage(msg.imageUrl!),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Stack(
+                            alignment: Alignment.bottomLeft,
+                            children: [
+                              Image.network(
+                                msg.imageUrl!,
+                                width: 200,
+                                height: 160,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return Container(
+                                    width: 200,
+                                    height: 160,
+                                    color: Colors.black12,
+                                    child: const Center(child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)),
+                                  );
+                                },
+                              ),
+                              if (msg.isReceipt)
+                                Container(
+                                  margin: const EdgeInsets.all(6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.85),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text("🧾 PAYMENT RECEIPT", style: TextStyle(color: Color(0xFF39FF14), fontSize: 8, fontWeight: FontWeight.w900)),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    if (msg.content.isNotEmpty && !(hasImage && (msg.content == '📷 Image Attachment' || msg.content == '🧾 Payment Receipt')))
+                      Text(
+                        msg.content,
+                        style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -995,7 +1190,7 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E1E1E),
                         borderRadius: const BorderRadius.only(
@@ -1006,9 +1201,54 @@ class _LobbyGroupChatScreenState extends State<LobbyGroupChatScreen> {
                         ),
                         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                       ),
-                      child: Text(
-                        msg.content,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (hasImage) ...[
+                            GestureDetector(
+                              onTap: () => _showFullScreenImage(msg.imageUrl!),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Stack(
+                                  alignment: Alignment.bottomLeft,
+                                  children: [
+                                    Image.network(
+                                      msg.imageUrl!,
+                                      width: 200,
+                                      height: 160,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, progress) {
+                                        if (progress == null) return child;
+                                        return Container(
+                                          width: 200,
+                                          height: 160,
+                                          color: Colors.black26,
+                                          child: const Center(child: CircularProgressIndicator(color: Color(0xFF39FF14), strokeWidth: 2)),
+                                        );
+                                      },
+                                    ),
+                                    if (msg.isReceipt)
+                                      Container(
+                                        margin: const EdgeInsets.all(6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.85),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text("🧾 PAYMENT RECEIPT", style: TextStyle(color: Color(0xFF39FF14), fontSize: 8, fontWeight: FontWeight.w900)),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          if (msg.content.isNotEmpty && !(hasImage && (msg.content == '📷 Image Attachment' || msg.content == '🧾 Payment Receipt')))
+                            Text(
+                              msg.content,
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 2),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'models/models.dart';
 import 'services/chat_service.dart';
 import 'create_lobby_page.dart';
@@ -14,8 +15,10 @@ class ChatDetailScreen extends StatefulWidget {
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final ChatService _chatService = ChatService();
+  final ImagePicker _imagePicker = ImagePicker();
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _isUploading = false;
 
   @override
   void dispose() {
@@ -24,9 +27,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _handleSendMessage() async {
+  Future<void> _handleSendMessage({String? imageUrl, bool isReceipt = false}) async {
     final text = _msgController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && imageUrl == null) return;
 
     _msgController.clear();
 
@@ -34,6 +37,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       await _chatService.sendMessage(
         receiverId: widget.athlete.id,
         content: text,
+        imageUrl: imageUrl,
+        isReceipt: isReceipt,
       );
       _scrollToBottom();
     } catch (e) {
@@ -43,6 +48,138 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
       }
     }
+  }
+
+  Future<void> _pickAndAttachImage(ImageSource source, {bool isReceipt = false}) async {
+    try {
+      final picked = await _imagePicker.pickImage(source: source, imageQuality: 70);
+      if (picked == null) return;
+
+      setState(() => _isUploading = true);
+
+      final url = await _chatService.uploadChatImage(picked);
+      if (url != null) {
+        await _handleSendMessage(imageUrl: url, isReceipt: isReceipt);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to upload image. Please try again."), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Attachment error: $e");
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  void _showAttachmentSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "SHARE ATTACHMENT / PAYMENT PROOF",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF39FF14).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF39FF14), size: 20),
+                ),
+                title: const Text("Forward Payment Receipt 🧾", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("Attach FPX / DuitNow payment screenshot", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndAttachImage(ImageSource.gallery, isReceipt: true);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: Colors.blueAccent, size: 20),
+                ),
+                title: const Text("Photo Gallery", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("Select image from your phone", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndAttachImage(ImageSource.gallery, isReceipt: false);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.purpleAccent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: Colors.purpleAccent, size: 20),
+                ),
+                title: const Text("Take Photo / Scan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("Capture live photo or court view", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndAttachImage(ImageSource.camera, isReceipt: false);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(10),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              clipBehavior: Clip.none,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -168,13 +305,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
           // Message Input Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFF121212),
               border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
             ),
             child: Row(
               children: [
+                // Attachment / Receipt Button
+                IconButton(
+                  icon: _isUploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Color(0xFF39FF14), strokeWidth: 2),
+                        )
+                      : const Icon(Icons.attach_file_rounded, color: Color(0xFF39FF14), size: 22),
+                  tooltip: "Attach Receipt / Image",
+                  onPressed: _isUploading ? null : _showAttachmentSheet,
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -188,24 +338,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       textCapitalization: TextCapitalization.sentences,
                       onSubmitted: (_) => _handleSendMessage(),
                       decoration: const InputDecoration(
-                        hintText: "Type a message...",
-                        hintStyle: TextStyle(color: Colors.white30, fontSize: 14),
+                        hintText: "Type message or attach receipt...",
+                        hintStyle: TextStyle(color: Colors.white30, fontSize: 13),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: _handleSendMessage,
+                  onTap: () => _handleSendMessage(),
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(11),
                     decoration: const BoxDecoration(
                       color: Color(0xFF39FF14),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.send_rounded, color: Colors.black, size: 20),
+                    child: const Icon(Icons.send_rounded, color: Colors.black, size: 19),
                   ),
                 ),
               ],
@@ -224,13 +374,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       itemBuilder: (context, index) {
         final msg = messages[index];
         final isMe = msg.senderId == _chatService.currentUserId || msg.senderId.startsWith('local');
+        final hasImage = msg.imageUrl != null && msg.imageUrl!.isNotEmpty;
 
         return Align(
           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: isMe ? const Color(0xFF39FF14) : const Color(0xFF1E1E1E),
               borderRadius: BorderRadius.only(
@@ -250,15 +401,74 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             child: Column(
               crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                Text(
-                  msg.content,
-                  style: TextStyle(
-                    color: isMe ? Colors.black : Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.3,
+                // Image Attachment / Receipt Display
+                if (hasImage) ...[
+                  GestureDetector(
+                    onTap: () => _showFullScreenImage(msg.imageUrl!),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        alignment: Alignment.bottomLeft,
+                        children: [
+                          Image.network(
+                            msg.imageUrl!,
+                            width: 220,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return Container(
+                                width: 220,
+                                height: 180,
+                                color: Colors.black26,
+                                child: const Center(child: CircularProgressIndicator(color: Color(0xFF39FF14), strokeWidth: 2)),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 220,
+                              height: 120,
+                              color: Colors.black38,
+                              child: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white38)),
+                            ),
+                          ),
+                          if (msg.isReceipt)
+                            Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFF39FF14), width: 1),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.receipt_rounded, color: Color(0xFF39FF14), size: 12),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    "PAYMENT RECEIPT",
+                                    style: TextStyle(color: Color(0xFF39FF14), fontSize: 9, fontWeight: FontWeight.w900),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                ],
+
+                if (msg.content.isNotEmpty && !(hasImage && (msg.content == '📷 Image Attachment' || msg.content == '🧾 Payment Receipt')))
+                  Text(
+                    msg.content,
+                    style: TextStyle(
+                      color: isMe ? Colors.black : Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      height: 1.3,
+                    ),
+                  ),
                 const SizedBox(height: 4),
                 Text(
                   _formatTime(msg.createdAt),

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import 'match_service.dart';
@@ -9,12 +10,37 @@ class ChatService {
 
   String? get currentUserId => _supabase.auth.currentUser?.id;
 
+  /// Upload chat image / payment receipt to Supabase Storage and return public URL
+  Future<String?> uploadChatImage(XFile file) async {
+    if (currentUserId == null) return null;
+    try {
+      final bytes = await file.readAsBytes();
+      final ext = file.name.split('.').last.toLowerCase();
+      final fileName = 'chat_${currentUserId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final path = 'attachments/$fileName';
+
+      await _supabase.storage.from('avatars').uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
+      );
+
+      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(path);
+      return publicUrl;
+    } catch (e) {
+      debugPrint("Warning uploading image attachment: $e");
+      return null;
+    }
+  }
+
   /// Send a chat message to a specific user (Requires mutual match OR shared match lobby)
   Future<void> sendMessage({
     required String receiverId,
     required String content,
+    String? imageUrl,
+    bool isReceipt = false,
   }) async {
-    if (currentUserId == null || content.trim().isEmpty) return;
+    if (currentUserId == null || (content.trim().isEmpty && imageUrl == null)) return;
 
     try {
       // 1. Verify mutual match exists between current user and target user
@@ -35,7 +61,6 @@ class ChatService {
       // 2. If no swipe match yet, check if users share a match lobby (as host or approved participant)
       if (!isAllowed) {
         try {
-          // Check A: Current user is host of a lobby where receiver is an approved participant
           final hostMatch = await _supabase
               .from('lobby_participants')
               .select('id, lobbies!inner(host_id)')
@@ -51,7 +76,6 @@ class ChatService {
 
       if (!isAllowed) {
         try {
-          // Check B: Receiver is host of a lobby where current user is an approved participant
           final participantMatch = await _supabase
               .from('lobby_participants')
               .select('id, lobbies!inner(host_id)')
@@ -67,7 +91,6 @@ class ChatService {
 
       if (!isAllowed) {
         try {
-          // Check C: Both users are approved participants in the same lobby
           final myLobbies = await _supabase
               .from('lobby_participants')
               .select('lobby_id')
@@ -110,12 +133,19 @@ class ChatService {
       } catch (_) {}
 
       // 3. Insert message
-      await _supabase.from('messages').insert({
+      final msgText = content.trim().isEmpty
+          ? (isReceipt ? '🧾 Payment Receipt' : '📷 Image Attachment')
+          : content.trim();
+
+      final payload = <String, dynamic>{
         'sender_id': currentUserId,
         'receiver_id': receiverId,
-        'content': content.trim(),
+        'content': msgText,
         'created_at': DateTime.now().toIso8601String(),
-      });
+      };
+      if (imageUrl != null) payload['image_url'] = imageUrl;
+
+      await _supabase.from('messages').insert(payload);
     } catch (e) {
       debugPrint("Error sending chat message: $e");
       rethrow;
@@ -147,26 +177,38 @@ class ChatService {
   Future<void> sendLobbyMessage({
     required String lobbyId,
     required String content,
+    String? imageUrl,
+    bool isReceipt = false,
   }) async {
-    if (currentUserId == null || content.trim().isEmpty) return;
+    if (currentUserId == null || (content.trim().isEmpty && imageUrl == null)) return;
+
+    final msgText = content.trim().isEmpty
+        ? (isReceipt ? '🧾 Payment Receipt' : '📷 Image Attachment')
+        : content.trim();
 
     try {
       // Primary: Insert into dedicated lobby_messages table
-      await _supabase.from('lobby_messages').insert({
+      final payload = <String, dynamic>{
         'lobby_id': lobbyId.toString(),
         'sender_id': currentUserId,
-        'content': content.trim(),
+        'content': msgText,
         'created_at': DateTime.now().toIso8601String(),
-      });
+      };
+      if (imageUrl != null) payload['image_url'] = imageUrl;
+
+      await _supabase.from('lobby_messages').insert(payload);
     } catch (e) {
       debugPrint("lobby_messages table not detected or failed, trying fallback to messages table: $e");
       try {
-        await _supabase.from('messages').insert({
+        final fallbackPayload = <String, dynamic>{
           'sender_id': currentUserId,
           'receiver_id': 'lobby_$lobbyId',
-          'content': content.trim(),
+          'content': msgText,
           'created_at': DateTime.now().toIso8601String(),
-        });
+        };
+        if (imageUrl != null) fallbackPayload['image_url'] = imageUrl;
+
+        await _supabase.from('messages').insert(fallbackPayload);
       } catch (fallbackError) {
         debugPrint("Fatal error sending squad message: $fallbackError");
         rethrow;

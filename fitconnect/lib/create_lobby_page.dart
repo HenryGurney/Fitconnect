@@ -73,6 +73,9 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
   final List<String> _selectedSkills = [];
   bool _isOpenToAll = true;
 
+  // Match Referee Toggle State
+  bool _needReferee = false;
+
   // Sports Icons Mapping
   static const Map<String, String> _sportIcons = {
     'Futsal': '⚽',
@@ -927,7 +930,62 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 10. PRO SPOTLIGHT PINNED LOBBY TOGGLE
+                  // 10. MATCH REFEREE TOGGLE
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF141414),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: _needReferee ? const Color(0xFFFFD700) : Colors.white.withValues(alpha: 0.08),
+                        width: _needReferee ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _needReferee
+                                ? const Color(0xFFFFD700).withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.05),
+                          ),
+                          child: const Icon(Icons.sports_rounded, color: Color(0xFFFFD700), size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "NEED A REFEREE?",
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                "Reserves a dedicated official referee slot in the match roster.",
+                                style: TextStyle(color: Colors.white60, fontSize: 10),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _needReferee,
+                          activeThumbColor: const Color(0xFFFFD700),
+                          activeTrackColor: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                          inactiveThumbColor: Colors.white24,
+                          inactiveTrackColor: Colors.black26,
+                          onChanged: (val) => setState(() => _needReferee = val),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 10.5 PRO SPOTLIGHT PINNED LOBBY TOGGLE
                   GestureDetector(
                     onTap: () {
                       if (!isPro) {
@@ -1103,6 +1161,7 @@ class _CreateLobbyPageState extends State<CreateLobbyPage> {
         matchDate: formattedDate,
         matchTime: formattedTime,
         courtFee: feeAndGender.trim().isNotEmpty ? feeAndGender.trim() : null,
+        hasReferee: _needReferee,
         isSpotlight: _isSpotlight,
       );
 
