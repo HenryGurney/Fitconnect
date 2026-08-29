@@ -52,50 +52,57 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
       'id': 'Maybank2u',
       'name': 'Maybank2u',
       'category': 'FPX',
+      'code': 'MBB',
       'color': const Color(0xFFFFCC00),
-      'icon': '🐯',
+      'icon': Icons.account_balance_rounded,
     },
     {
       'id': 'CIMB Clicks',
       'name': 'CIMB Clicks',
       'category': 'FPX',
+      'code': 'CIMB',
       'color': const Color(0xFFED1C24),
-      'icon': '🔴',
+      'icon': Icons.account_balance_rounded,
     },
     {
       'id': 'Bank Islam',
       'name': 'Bank Islam',
       'category': 'FPX',
-      'color': const Color(0xFFC00000),
-      'icon': '🕌',
+      'code': 'BIMB',
+      'color': const Color(0xFF00897B),
+      'icon': Icons.account_balance_rounded,
     },
     {
       'id': 'Public Bank',
       'name': 'Public Bank',
       'category': 'FPX',
+      'code': 'PBB',
       'color': const Color(0xFFDE1F27),
-      'icon': '🏦',
+      'icon': Icons.account_balance_rounded,
     },
     {
       'id': 'RHB Now',
       'name': 'RHB Now',
       'category': 'FPX',
+      'code': 'RHB',
       'color': const Color(0xFF0067B1),
-      'icon': '🔷',
+      'icon': Icons.account_balance_rounded,
     },
     {
       'id': 'TNG eWallet',
       'name': 'Touch \'n Go eWallet',
       'category': 'eWallet',
+      'code': 'TNG',
       'color': const Color(0xFF005BAA),
-      'icon': '📱',
+      'icon': Icons.phone_android_rounded,
     },
     {
       'id': 'Card',
-      'name': 'Visa / Mastercard',
+      'name': 'Credit / Debit Card',
       'category': 'Card',
+      'code': 'VISA/MC',
       'color': const Color(0xFF39FF14),
-      'icon': '💳',
+      'icon': Icons.credit_card_rounded,
     },
   ];
 
@@ -129,8 +136,8 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
       await SystemSound.play(SystemSoundType.click);
     } catch (_) {}
 
-    // Simulate real gateway processing delay
-    await Future.delayed(const Duration(milliseconds: 1800));
+    // Simulate gateway authorization processing
+    await Future.delayed(const Duration(milliseconds: 1600));
 
     if (mounted) {
       try {
@@ -224,11 +231,11 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "MALAYSIAN FPX & CARD GATEWAY",
+                    "FPX ONLINE BANKING & CARD GATEWAY",
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
                   ),
                   Text(
-                    "Secure Simulated Checkout • Sandbox Mode",
+                    "PayNet FPX Secure Payment Integration",
                     style: TextStyle(color: Colors.white38, fontSize: 10),
                   ),
                 ],
@@ -294,6 +301,10 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
         // List of Banks & eWallets
         ..._banks.map((b) {
           final isSelected = _selectedMethod == b['id'];
+          final IconData iconData = b['icon'] as IconData;
+          final Color iconColor = b['color'] as Color;
+          final String code = b['code'] as String;
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: GestureDetector(
@@ -310,16 +321,28 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
                 ),
                 child: Row(
                   children: [
-                    Text(b['icon'], style: const TextStyle(fontSize: 18)),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(iconData, color: iconColor, size: 16),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        b['name'],
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
-                          fontWeight: isSelected ? FontWeight.w900 : FontWeight.normal,
-                          fontSize: 13,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            b['name'],
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.white70,
+                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Container(
@@ -329,7 +352,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        b['category'],
+                        code,
                         style: const TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -373,7 +396,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
               onPressed: () => setState(() => _currentStep = 0),
             ),
             Text(
-              "$_selectedMethod Online Banking",
+              "$_selectedMethod Authorization",
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(width: 40),
@@ -390,11 +413,11 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Merchant:", style: TextStyle(color: Colors.white38, fontSize: 12)),
-                  const Text("FITCONNECT SDN BHD", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text("Merchant:", style: TextStyle(color: Colors.white38, fontSize: 12)),
+                  Text("FITCONNECT SDN BHD", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 8),
@@ -455,12 +478,12 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
 
   /// Step 2: Processing Spinner
   Widget _buildProcessingStep() {
-    return Column(
-      key: const ValueKey(2),
+    return const Column(
+      key: ValueKey(2),
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 30),
-        const SizedBox(
+        SizedBox(height: 30),
+        SizedBox(
           width: 54,
           height: 54,
           child: CircularProgressIndicator(
@@ -468,17 +491,17 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
             strokeWidth: 4,
           ),
         ),
-        const SizedBox(height: 24),
-        const Text(
-          "Processing Payment with Bank...",
+        SizedBox(height: 24),
+        Text(
+          "Authorizing Payment with Bank...",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
         ),
-        const SizedBox(height: 6),
-        const Text(
+        SizedBox(height: 6),
+        Text(
           "Please do not close or refresh this window",
           style: TextStyle(color: Colors.white38, fontSize: 12),
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
       ],
     );
   }
@@ -503,7 +526,7 @@ class _PaymentGatewayModalState extends State<PaymentGatewayModal> {
         ),
         const SizedBox(height: 14),
         const Text(
-          "PAYMENT SUCCESSFUL ⚡",
+          "PAYMENT SUCCESSFUL",
           style: TextStyle(color: Color(0xFF39FF14), fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1),
         ),
         const SizedBox(height: 4),

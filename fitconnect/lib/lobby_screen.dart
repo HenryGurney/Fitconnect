@@ -23,16 +23,16 @@ class _LobbyScreenState extends State<LobbyScreen> {
   String _searchQuery = '';
   Position? _userPosition;
 
-  static const Map<String, String> _sportIcons = {
-    'ALL': '🔥',
-    'FUTSAL': '⚽',
-    'FOOTBALL': '⚽',
-    'BADMINTON': '🏸',
-    'TENNIS': '🎾',
-    'BASKETBALL': '🏀',
-    'VOLLEYBALL': '🏐',
-    'PICKLEBALL': '🏓',
-    'RUNNING': '🏃',
+  static const Map<String, IconData> _sportIcons = {
+    'ALL': Icons.sports_rounded,
+    'FUTSAL': Icons.sports_soccer_rounded,
+    'FOOTBALL': Icons.sports_soccer_rounded,
+    'BADMINTON': Icons.sports_tennis_rounded,
+    'TENNIS': Icons.sports_tennis_rounded,
+    'BASKETBALL': Icons.sports_basketball_rounded,
+    'VOLLEYBALL': Icons.sports_volleyball_rounded,
+    'PICKLEBALL': Icons.sports_baseball_rounded,
+    'RUNNING': Icons.directions_run_rounded,
   };
 
   final List<String> _sportsList = const [
@@ -71,7 +71,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
         setState(() => _userPosition = pos);
       }
     } catch (e) {
-      debugPrint("Info: could not fetch GPS position for lobby radius filter: $e");
+      debugPrint("Info: GPS position fetch: $e");
     }
   }
 
@@ -93,38 +93,132 @@ class _LobbyScreenState extends State<LobbyScreen> {
     if (mounted) setState(() {});
   }
 
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "FILTER MATCHES",
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 16),
+                const Text("DISTANCE RADIUS", style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildRadiusOption("Any Distance", 'ALL', setSheetState),
+                    _buildRadiusOption("Within 10 km", '10KM', setSheetState),
+                    _buildRadiusOption("Within 25 km", '25KM', setSheetState),
+                    _buildRadiusOption("Within 50 km", '50KM', setSheetState),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const Text("MATCH SCOPE", style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildScopeOption("All Matches", 'ALL', setSheetState),
+                    _buildScopeOption("Hosted by Me", 'MINE', setSheetState),
+                    _buildScopeOption("Has Open Spots", 'OPEN', setSheetState),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF39FF14),
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    setState(() {});
+                  },
+                  child: const Text("APPLY FILTERS", style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRadiusOption(String label, String value, StateSetter setSheetState) {
+    final isSelected = _selectedRadius == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (val) {
+        setSheetState(() => _selectedRadius = value);
+        setState(() => _selectedRadius = value);
+      },
+      selectedColor: const Color(0xFF39FF14),
+      backgroundColor: const Color(0xFF1E1E1E),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.black : Colors.white70,
+        fontWeight: FontWeight.bold,
+        fontSize: 12,
+      ),
+    );
+  }
+
+  Widget _buildScopeOption(String label, String value, StateSetter setSheetState) {
+    final isSelected = _selectedScope == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (val) {
+        setSheetState(() => _selectedScope = value);
+        setState(() => _selectedScope = value);
+      },
+      selectedColor: const Color(0xFF39FF14),
+      backgroundColor: const Color(0xFF1E1E1E),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.black : Colors.white70,
+        fontWeight: FontWeight.bold,
+        fontSize: 12,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId = _lobbyService.currentUserId;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080808),
+      backgroundColor: const Color(0xFF0A0A0A),
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.sports_soccer, color: Color(0xFF39FF14), size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              "MATCH LOBBIES",
-              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 18, color: Colors.white),
-            ),
-          ],
+        title: const Text(
+          "MATCH LOBBIES",
+          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 18, color: Colors.white),
         ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFF0A0A0A),
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            tooltip: "Create Match",
-            icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF39FF14), size: 26),
+            tooltip: "Host Match",
+            icon: const Icon(Icons.add_circle_rounded, color: Color(0xFF39FF14), size: 28),
             onPressed: () {
               Navigator.push(
                 context,
@@ -132,81 +226,93 @@ class _LobbyScreenState extends State<LobbyScreen> {
               );
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
-          // 1. Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Container(
-              height: 46,
-              decoration: BoxDecoration(
-                color: const Color(0xFF141414),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
-                decoration: InputDecoration(
-                  hintText: "Search matches by venue or title...",
-                  hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.white38, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ),
-
-          // 2. Scope Filter Chips (All, My Lobbies, Open Spots)
+          // 1. Search & Filter Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                _buildScopeFilterChip("ALL MATCHES", 'ALL', Icons.all_inclusive_rounded),
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF141414),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+                      decoration: InputDecoration(
+                        hintText: "Search matches or venue...",
+                        hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38, size: 18),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, color: Colors.white38, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                _buildScopeFilterChip("HOSTED BY ME", 'MINE', Icons.star_rounded, isGold: true),
-                const SizedBox(width: 8),
-                _buildScopeFilterChip("OPEN SPOTS", 'OPEN', Icons.group_add_rounded),
+                GestureDetector(
+                  onTap: _showFilterSheet,
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: (_selectedRadius != 'ALL' || _selectedScope != 'ALL')
+                          ? const Color(0xFF1E2818)
+                          : const Color(0xFF141414),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: (_selectedRadius != 'ALL' || _selectedScope != 'ALL')
+                            ? const Color(0xFF39FF14)
+                            : Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.tune_rounded,
+                          color: (_selectedRadius != 'ALL' || _selectedScope != 'ALL')
+                              ? const Color(0xFF39FF14)
+                              : Colors.white70,
+                          size: 18,
+                        ),
+                        if (_selectedRadius != 'ALL' || _selectedScope != 'ALL') ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF39FF14)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
 
-          // 2.5 Distance Radius Filter Chips
-          SizedBox(
-            height: 36,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildRadiusChip("🌐 ALL DISTANCE", 'ALL'),
-                const SizedBox(width: 6),
-                _buildRadiusChip("📍 < 10 KM", '10KM'),
-                const SizedBox(width: 6),
-                _buildRadiusChip("📍 < 25 KM", '25KM'),
-                const SizedBox(width: 6),
-                _buildRadiusChip("📍 < 50 KM", '50KM'),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          // 3. Sport Category Filter Bar
-          SizedBox(
-            height: 40,
+          // 2. Sport Category Selector
+          Container(
+            height: 42,
+            margin: const EdgeInsets.only(top: 8, bottom: 6),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -214,42 +320,43 @@ class _LobbyScreenState extends State<LobbyScreen> {
               itemBuilder: (context, index) {
                 final sport = _sportsList[index];
                 final isSelected = _selectedSport == sport;
-                final icon = _sportIcons[sport] ?? '⚽';
+                final iconData = _sportIcons[sport] ?? Icons.sports_rounded;
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    avatar: Text(icon, style: const TextStyle(fontSize: 13)),
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    avatar: Icon(
+                      iconData,
+                      size: 14,
+                      color: isSelected ? Colors.black : const Color(0xFF39FF14),
+                    ),
                     label: Text(sport),
                     selected: isSelected,
                     onSelected: (selected) {
-                      if (selected) {
-                        setState(() => _selectedSport = sport);
-                      }
+                      if (selected) setState(() => _selectedSport = sport);
                     },
                     selectedColor: const Color(0xFF39FF14),
-                    backgroundColor: const Color(0xFF121212),
+                    backgroundColor: const Color(0xFF141414),
                     side: BorderSide(
-                      color: isSelected ? const Color(0xFF39FF14) : Colors.white.withValues(alpha: 0.08),
+                      color: isSelected ? const Color(0xFF39FF14) : Colors.white.withValues(alpha: 0.06),
                     ),
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.black : Colors.white70,
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
                 );
               },
             ),
           ),
-          const SizedBox(height: 8),
 
-          // 4. Lobbies Stream List
+          // 3. Lobbies Stream List
           Expanded(
             child: RefreshIndicator(
               color: const Color(0xFF39FF14),
-              backgroundColor: const Color(0xFF0F0F0F),
+              backgroundColor: const Color(0xFF141414),
               onRefresh: _handleRefresh,
               child: StreamBuilder<List<LobbyModel>>(
                 stream: _lobbiesStream,
@@ -271,19 +378,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
                   final allLobbies = snapshot.data ?? [];
 
-                  // Apply Filtering
+                  // Apply Filters
                   final filteredLobbies = allLobbies.where((lobby) {
-                    // Scope filter
-                    if (_selectedScope == 'MINE' && lobby.hostId != currentUserId) {
-                      return false;
-                    }
+                    if (_selectedScope == 'MINE' && lobby.hostId != currentUserId) return false;
+                    if (_selectedSport != 'ALL' && lobby.sport.toUpperCase() != _selectedSport) return false;
 
-                    // Sport filter
-                    if (_selectedSport != 'ALL' && lobby.sport.toUpperCase() != _selectedSport) {
-                      return false;
-                    }
-
-                    // Distance Radius filter
                     if (_selectedRadius != 'ALL') {
                       final distKm = _calculateDistanceKm(lobby.latitude, lobby.longitude);
                       if (distKm != null) {
@@ -293,12 +392,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       }
                     }
 
-                    // Text Search filter
                     if (_searchQuery.isNotEmpty) {
                       final titleMatch = lobby.title.toLowerCase().contains(_searchQuery);
-                      final locationMatch = lobby.locationName.toLowerCase().contains(_searchQuery);
+                      final locMatch = lobby.locationName.toLowerCase().contains(_searchQuery);
                       final sportMatch = lobby.sport.toLowerCase().contains(_searchQuery);
-                      if (!titleMatch && !locationMatch && !sportMatch) return false;
+                      if (!titleMatch && !locMatch && !sportMatch) return false;
                     }
 
                     return true;
@@ -317,39 +415,39 @@ class _LobbyScreenState extends State<LobbyScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.all(22),
+                                    padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: const Color(0xFF39FF14).withValues(alpha: 0.05),
                                       border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.15)),
                                     ),
-                                    child: const Icon(Icons.sports_score_rounded, size: 48, color: Color(0xFF39FF14)),
+                                    child: const Icon(Icons.sports_soccer_rounded, size: 40, color: Color(0xFF39FF14)),
                                   ),
-                                  const SizedBox(height: 18),
+                                  const SizedBox(height: 16),
                                   const Text(
                                     "NO MATCHES FOUND",
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w900,
-                                      fontSize: 16,
-                                      letterSpacing: 1.5,
+                                      fontSize: 15,
+                                      letterSpacing: 1,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 6),
                                   Text(
                                     _selectedScope == 'MINE'
-                                        ? "You haven't hosted any matches yet.\nTap below to launch one!"
-                                        : "No active matches match your current filters.\nTry adjusting radius, sports or host your own match!",
+                                        ? "You haven't hosted any matches yet."
+                                        : "No active matches match your current filters.",
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(color: Colors.white38, fontSize: 13, height: 1.4),
+                                    style: const TextStyle(color: Colors.white38, fontSize: 12),
                                   ),
-                                  const SizedBox(height: 22),
+                                  const SizedBox(height: 20),
                                   ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF39FF14),
                                       foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
                                     onPressed: () {
                                       Navigator.push(
@@ -357,8 +455,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
                                         MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
                                       );
                                     },
-                                    icon: const Icon(Icons.add, size: 18),
-                                    label: const Text("HOST A MATCH", style: TextStyle(fontWeight: FontWeight.w900)),
+                                    icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                                    label: const Text("HOST A MATCH", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                   ),
                                 ],
                               ),
@@ -369,28 +467,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     );
                   }
 
-                  // Sorting: PRO Pinning & User's own lobbies at top
-                  final sortedLobbies = List<LobbyModel>.from(filteredLobbies)..sort((a, b) {
-                    final aMine = a.hostId == currentUserId;
-                    final bMine = b.hostId == currentUserId;
-                    if (aMine && !bMine) return -1;
-                    if (!aMine && bMine) return 1;
-
-                    final aPro = a.hostProfile?.isPremium ?? false;
-                    final bPro = b.hostProfile?.isPremium ?? false;
-                    if (aPro && !bPro) return -1;
-                    if (!aPro && bPro) return 1;
-                    return 0;
-                  });
-
                   return ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(top: 4, bottom: 100),
-                    itemCount: sortedLobbies.length,
+                    padding: const EdgeInsets.only(bottom: 24, top: 4),
+                    itemCount: filteredLobbies.length,
                     itemBuilder: (context, index) {
-                      final lobby = sortedLobbies[index];
-                      final distKm = _calculateDistanceKm(lobby.latitude, lobby.longitude);
-                      return LobbyCardWidget(lobby: lobby, distanceKm: distKm);
+                      final lobby = filteredLobbies[index];
+                      final distanceKm = _calculateDistanceKm(lobby.latitude, lobby.longitude);
+                      return LobbyCardWidget(lobby: lobby, distanceKm: distanceKm);
                     },
                   );
                 },
@@ -398,97 +481,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF39FF14),
-        foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreateLobbyPage()),
-          );
-        },
-        icon: const Icon(Icons.add, size: 22),
-        label: const Text("HOST MATCH", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-      ),
-    );
-  }
-
-  Widget _buildRadiusChip(String label, String value) {
-    final isSelected = _selectedRadius == value;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRadius = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF00E5FF).withValues(alpha: 0.18) : const Color(0xFF141414),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF00E5FF) : Colors.white.withValues(alpha: 0.08),
-            width: isSelected ? 1.2 : 1.0,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? const Color(0xFF00E5FF) : Colors.white60,
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.4,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScopeFilterChip(String label, String value, IconData icon, {bool isGold = false}) {
-    final isSelected = _selectedScope == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedScope = value),
-        child: Container(
-          height: 36,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isGold ? const Color(0xFFFFD700) : const Color(0xFF39FF14))
-                : const Color(0xFF141414),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected
-                  ? Colors.transparent
-                  : (isGold ? const Color(0xFFFFD700).withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.08)),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 14,
-                color: isSelected
-                    ? Colors.black
-                    : (isGold ? const Color(0xFFFFD700) : Colors.white60),
-              ),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isSelected
-                        ? Colors.black
-                        : (isGold ? const Color(0xFFFFD700) : Colors.white70),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -507,7 +499,6 @@ class LobbyCardWidget extends StatelessWidget {
     final isMyLobby = lobby.hostId == currentUserId;
     final isHostPro = lobby.hostProfile?.isPremium ?? false;
     final fee = lobby.feePerPax;
-    final gender = lobby.genderRestriction;
 
     return GestureDetector(
       onTap: () {
@@ -517,189 +508,111 @@ class LobbyCardWidget extends StatelessWidget {
         );
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(18),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isMyLobby
-              ? const Color(0xFF131912)
-              : (isHostPro ? const Color(0xFF141208) : const Color(0xFF101010)),
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFF121212),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isMyLobby
-                ? const Color(0xFF39FF14).withValues(alpha: 0.5)
-                : (isHostPro ? const Color(0xFFFFD700).withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.05)),
-            width: isMyLobby ? 1.5 : (isHostPro ? 1.4 : 1.0),
+                ? const Color(0xFF39FF14).withValues(alpha: 0.35)
+                : (isHostPro ? const Color(0xFFFFD700).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.06)),
+            width: isMyLobby || isHostPro ? 1.2 : 1.0,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isMyLobby
-                  ? const Color(0xFF39FF14).withValues(alpha: 0.05)
-                  : Colors.black.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            )
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Top Badges & Live Capacity Row
+            // 1. Top Tags & Status
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Flexible(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      // Sport tag
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF39FF14).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          lobby.sport.toUpperCase(),
-                          style: const TextStyle(
-                            color: Color(0xFF39FF14),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 11,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
-
-                      // "YOUR LOBBY" Badge
-                      if (isMyLobby) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.4)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.star_rounded, color: Color(0xFF39FF14), size: 12),
-                              SizedBox(width: 2),
-                              Text(
-                                "YOUR MATCH",
-                                style: TextStyle(
-                                  color: Color(0xFF39FF14),
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ] else if (isHostPro) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.push_pin_rounded, color: Color(0xFFFFD700), size: 10),
-                              SizedBox(width: 2),
-                              Text(
-                                "PINNED",
-                                style: TextStyle(
-                                  color: Color(0xFFFFD700),
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      // Referee Badge
-                      if (lobby.hasReferee) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.sports_rounded, color: Color(0xFFFFD700), size: 10),
-                              SizedBox(width: 3),
-                              Text(
-                                "REFEREED",
-                                style: TextStyle(
-                                  color: Color(0xFFFFD700),
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      if (gender != null) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            gender == 'Male Only' ? '👨 Male' : '👩 Female',
-                            style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF39FF14).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    lobby.sport.toUpperCase(),
+                    style: const TextStyle(
+                      color: Color(0xFF39FF14),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-
-                // Live Capacity Stream Badge
+                if (isMyLobby) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF39FF14).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      "YOUR MATCH",
+                      style: TextStyle(color: Color(0xFF39FF14), fontSize: 9, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ] else if (isHostPro) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      "PINNED",
+                      style: TextStyle(color: Color(0xFFFFD700), fontSize: 9, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+                if (lobby.hasReferee) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sports_rounded, color: Color(0xFFFFD700), size: 10),
+                        SizedBox(width: 3),
+                        Text(
+                          "REFEREED",
+                          style: TextStyle(color: Color(0xFFFFD700), fontSize: 9, fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const Spacer(),
                 StreamBuilder<List<LobbyParticipantModel>>(
                   stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
                   builder: (context, snapshot) {
                     final participants = snapshot.data ?? [];
                     final approvedCount = participants.where((p) => p.status == 'approved').length;
                     final totalFilled = 1 + approvedCount;
-                    final slotsLeft = (lobby.maxParticipants - totalFilled).clamp(0, lobby.maxParticipants);
                     final isFull = totalFilled >= lobby.maxParticipants;
 
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
                         color: isFull
                             ? Colors.redAccent.withValues(alpha: 0.15)
-                            : const Color(0xFF39FF14).withValues(alpha: 0.12),
+                            : const Color(0xFF39FF14).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isFull
-                              ? Colors.redAccent.withValues(alpha: 0.4)
-                              : const Color(0xFF39FF14).withValues(alpha: 0.3),
-                        ),
                       ),
                       child: Text(
-                        isFull ? "FULL ($totalFilled/${lobby.maxParticipants})" : "$totalFilled/${lobby.maxParticipants} • $slotsLeft LEFT",
+                        "$totalFilled/${lobby.maxParticipants} Joined",
                         style: TextStyle(
                           color: isFull ? Colors.redAccent : const Color(0xFF39FF14),
                           fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     );
@@ -707,7 +620,7 @@ class LobbyCardWidget extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             // 2. Title & Pro Badge
             Row(
@@ -717,350 +630,77 @@ class LobbyCardWidget extends StatelessWidget {
                     lobby.cleanTitle,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.2,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (lobby.hostProfile?.isPremium ?? false) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   const ProBadgeWidget(isCompact: true),
                 ],
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
-            // 3. Organizer Profile Row (Asynchronously fetched to guarantee real avatar & name)
-            FutureBuilder<ProfileModel?>(
-              future: _lobbyService.fetchPlayerProfile(lobby.hostId),
-              builder: (context, hostSnap) {
-                final hostProfile = hostSnap.data ?? lobby.hostProfile;
-                final hostName = hostProfile?.name ?? (isMyLobby ? 'You' : 'Match Host');
-                final hostImg = hostProfile?.imageUrl;
-
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: isMyLobby
-                        ? const Color(0xFF39FF14).withValues(alpha: 0.08)
-                        : Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isMyLobby
-                          ? const Color(0xFF39FF14).withValues(alpha: 0.25)
-                          : Colors.white.withValues(alpha: 0.05),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _buildAvatarCircle(
-                        imageUrl: hostImg,
-                        name: hostName,
-                        radius: 12,
-                        borderColor: isMyLobby ? const Color(0xFF39FF14) : const Color(0xFFFFD700),
-                        isHost: true,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                isMyLobby ? "$hostName (Organizer)" : hostName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: isMyLobby ? const Color(0xFF39FF14) : Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                              decoration: BoxDecoration(
-                                color: isMyLobby
-                                    ? const Color(0xFF39FF14).withValues(alpha: 0.15)
-                                    : const Color(0xFFFFD700).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                isMyLobby ? "YOU" : "HOST",
-                                style: TextStyle(
-                                  color: isMyLobby ? const Color(0xFF39FF14) : const Color(0xFFFFD700),
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // 4. Joined Squad Preview (Live Real Facepile)
-            StreamBuilder<List<LobbyParticipantModel>>(
-              stream: _lobbyService.getAllLobbyRequestsStream(lobby.id),
-              builder: (context, snapshot) {
-                final participants = snapshot.data ?? [];
-                final approved = participants.where((p) => p.status == 'approved').toList();
-
-                return Row(
-                  children: [
-                    // Mini avatar stack
-                    SizedBox(
-                      height: 24,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Host mini avatar
-                          FutureBuilder<ProfileModel?>(
-                            future: _lobbyService.fetchPlayerProfile(lobby.hostId),
-                            builder: (context, hSnap) {
-                              final h = hSnap.data ?? lobby.hostProfile;
-                              return _buildAvatarCircle(
-                                imageUrl: h?.imageUrl,
-                                name: h?.name ?? 'H',
-                                radius: 11,
-                                borderColor: const Color(0xFFFFD700),
-                                isHost: true,
-                              );
-                            },
-                          ),
-                          // Up to 3 approved players
-                          ...approved.take(3).map((p) {
-                            return Padding(
-                              padding: const EdgeInsets.only(left: 3),
-                              child: FutureBuilder<ProfileModel?>(
-                                future: _lobbyService.fetchPlayerProfile(p.userId),
-                                builder: (context, pSnap) {
-                                  final player = pSnap.data;
-                                  return _buildAvatarCircle(
-                                    imageUrl: player?.imageUrl,
-                                    name: player?.name ?? 'P',
-                                    radius: 11,
-                                    borderColor: const Color(0xFF39FF14),
-                                    isHost: false,
-                                  );
-                                },
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        approved.isEmpty
-                            ? "Host waiting for players to join"
-                            : "${approved.length + 1} player${approved.length + 1 > 1 ? 's' : ''} in squad",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // 4. Venue Location & Distance Tag
+            // 3. Location & Distance
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Icon(Icons.location_on_outlined, color: Colors.white38, size: 15),
-                const SizedBox(width: 5),
+                const Icon(Icons.location_on_outlined, color: Colors.white38, size: 14),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     lobby.locationName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
                   ),
                 ),
                 if (distanceKm != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00E5FF).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.near_me_rounded, color: Color(0xFF00E5FF), size: 11),
-                        const SizedBox(width: 3),
-                        Text(
-                          "${distanceKm!.toStringAsFixed(1)} km",
-                          style: const TextStyle(
-                            color: Color(0xFF00E5FF),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${distanceKm!.toStringAsFixed(1)} km",
+                    style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ],
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
-            // 5. Match Schedule & Fee
+            // 4. Date & Fee Row
             Row(
               children: [
-                if (lobby.matchDate != null || lobby.matchTime != null)
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_month_outlined, color: Color(0xFF39FF14), size: 14),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            "${lobby.matchDate ?? ''} ${lobby.matchTime != null ? '• ${lobby.matchTime}' : ''}".trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF39FF14),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (fee != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF39FF14).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF39FF14).withValues(alpha: 0.35)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.payments_rounded, color: Color(0xFF39FF14), size: 12),
-                        const SizedBox(width: 4),
-                        Text(
-                          fee,
-                          style: const TextStyle(
-                            color: Color(0xFF39FF14),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
+                if (lobby.matchDate != null || lobby.matchTime != null) ...[
+                  const Icon(Icons.schedule_rounded, color: Colors.white38, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    "${lobby.matchDate ?? ''} ${lobby.matchTime != null ? '• ${lobby.matchTime}' : ''}".trim(),
+                    style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ],
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // 6. Action Button Bar
-            Container(
-              height: 38,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: isMyLobby
-                    ? const Color(0xFF39FF14).withValues(alpha: 0.12)
-                    : Colors.white.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isMyLobby
-                      ? const Color(0xFF39FF14).withValues(alpha: 0.3)
-                      : Colors.white.withValues(alpha: 0.06),
-                ),
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      isMyLobby ? "MANAGE SQUAD" : "VIEW MATCH",
+                const Spacer(),
+                if (fee != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF39FF14).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      fee,
                       style: const TextStyle(
                         color: Color(0xFF39FF14),
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(width: 5),
-                    const Icon(Icons.arrow_forward_rounded, color: Color(0xFF39FF14), size: 13),
-                  ],
-                ),
-              ),
+                  ),
+              ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatarCircle({
-    required String? imageUrl,
-    required String name,
-    required double radius,
-    required Color borderColor,
-    required bool isHost,
-  }) {
-    Widget child;
-
-    if (imageUrl != null && imageUrl.startsWith('http')) {
-      child = Image.network(
-        imageUrl,
-        width: radius * 2,
-        height: radius * 2,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(name, isHost, radius),
-      );
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      child = Image.asset(
-        imageUrl,
-        width: radius * 2,
-        height: radius * 2,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(name, isHost, radius),
-      );
-    } else {
-      child = _buildFallbackInitial(name, isHost, radius);
-    }
-
-    return Container(
-      width: radius * 2,
-      height: radius * 2,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: borderColor, width: 1.5),
-        color: borderColor.withValues(alpha: 0.15),
-      ),
-      child: ClipOval(child: child),
-    );
-  }
-
-  Widget _buildFallbackInitial(String name, bool isHost, double radius) {
-    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : (isHost ? 'H' : 'P');
-    return Center(
-      child: Text(
-        initial,
-        style: TextStyle(
-          color: isHost ? const Color(0xFFFFD700) : const Color(0xFF39FF14),
-          fontWeight: FontWeight.w900,
-          fontSize: radius * 0.85,
         ),
       ),
     );
